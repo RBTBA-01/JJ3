@@ -3,6 +3,7 @@
 import odoo.addons.decimal_precision as dp
 
 import time
+import calendar
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -1153,6 +1154,20 @@ class EmployeeLoanDetails(models.Model):
                     install.write({})
         return True
 
+
+    @api.model
+    def compare_payroll_period(self, installment_date):
+        payroll_period_lines = self.env['hr.payroll.period_line']
+        domain = [('start_date', '<=', installment_date), ('end_date', '>=', installment_date)]
+        period_line_records = payroll_period_lines.search(domain)
+
+        if not period_line_records:
+            raise Warning(_("No active Payroll Period!"))
+        else:   
+            for period_line in period_line_records:
+                return period_line.start_date
+
+
     @api.model
     def create_installments(self, loan):
         date_approved = time.strftime(DEFAULT_SERVER_DATE_FORMAT)
@@ -1160,21 +1175,61 @@ class EmployeeLoanDetails(models.Model):
             raise Warning(_('Please give disbursement date.'))
         else:
             date_disb = loan.date_disb
+
+        # MANIPULATE date_approved_obj and compare to active payroll period    
         date_approved_obj = datetime.strptime(date_disb, DEFAULT_SERVER_DATE_FORMAT)
+
+        installment_date= datetime.strptime(self.compare_payroll_period(date_approved_obj), DEFAULT_SERVER_DATE_FORMAT)
+
         installment_obj = self.env['loan.installment.details']
-        day = date_approved_obj.day
-        month = date_approved_obj.month
-        year = date_approved_obj.year
+        day = installment_date.day
+        month = installment_date.month 
+        year = installment_date.year
+        per_cutoff_duration = loan.duration * 2
         interest_amt = 0.0
-        principal_amt = loan.principal_amount / (loan.duration or 1.0)
+        principal_amt = loan.principal_amount / (per_cutoff_duration or 1.0)
         if loan.int_payable:
-            interest_amt = loan.total_interest_amount / (loan.duration or 1.0)
+            interest_amt = loan.total_interest_amount / (per_cutoff_duration or 1.0)
         total = principal_amt + interest_amt
         if loan.interest_mode == 'reducing':
-            reducing_val = self.reducing_balance_method(loan.principal_amount, loan.int_rate, loan.duration)
-        for install_no in range(0, loan.duration):
+            reducing_val = self.reducing_balance_method(loan.principal_amount, loan.int_rate, per_cutoff_duration)
+ 
+        for install_no in range(0, per_cutoff_duration):
             date_from = datetime(year, month, day)
-            date_to = (date_from + relativedelta(months=1, days=-1))
+            date_to = (date_from + relativedelta(weeks=2, days=+1))
+
+            # To correct dates caused by difference of month days
+            # SME Logic
+            if date_from.month == 2 and date_to.month != 2:
+                date_from_days = calendar.monthrange(date_from.year, date_from.month)
+                if date_from_days == 28:
+                    date_to = date_to + relativedelta(days=+2)
+                elif date_from_days == 29:
+                    date_to = date_to + relativedelta(days=+1)
+            else:
+                if date_from.month == date_to.month:
+                    date_to = date_to + relativedelta(days=-1)
+                elif date_from.month != date_to.month:
+                    date_from_days = calendar.monthrange(date_from.year, date_from.month)[1]
+                    date_to_days = calendar.monthrange(date_to.year, date_to.month)[1]
+                    if date_to_days == 31 and date_to_days != date_from_days:
+                        date_to = date_to + relativedelta(days=-1)
+        
+            # # GAB Logic
+            # date_from_days = calendar.monthrange(date_from.year, date_from.month)[1]
+            # date_to_days = calendar.monthrange(date_to.year, date_to.month)[1]
+            # if date_from.month == date_to.month:
+            #     if date_to_days == 30:
+            #         date_to = date_to + relativedelta(days=-1)
+            #     elif date_to_days == 31:
+            #         date_to = date_to + relativedelta(days=-1)
+            #         if date_to.day == 30:
+            #             date_to += relativedelta(days=+1)
+            # if date_from.month != date_to.month:
+            #     if date_from_days < date_to_days:
+            #         date_to = date_to + relativedelta(days=-1)
+                
+                
             if loan.interest_mode == 'reducing':
                 principal_amt = reducing_val[install_no]['principal_comp']
                 if loan.int_payable:

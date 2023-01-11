@@ -3376,8 +3376,6 @@ class HRPayrollAttendance(models.Model):
         #raise ValidationError(_("%s::::::%s:::::" % (self.date_from, self.payroll_period_id.start_date)))
         """Returns attendance record."""
         
-        # MARKER 1 START
-        # Function to generate attendance record
         def get_attendance_record(attendance_name, attendance_code):
             return {
                 'name': attendance_name,
@@ -3391,43 +3389,21 @@ class HRPayrollAttendance(models.Model):
         # Initialize worked_hours_ids
         worked_hours_ids = self.env['hr.payslip.worked_days'].browse([])
         
-        # Non-Late attendance types
-        attendance_types = [
-            (_("Official Business"), "OB", "ob_hours"),
-            (_("Leave With Pay"), "LWP", "leave_hours"),
-            (_("Leave Without Pay"), "LWOP", "leave_wop_hours")
-        ]
-
-        # Iterate over attendance_types and calculate the attendance record
-        for attendance_type in attendance_types:
-            attendance_name, attendance_code, field = attendance_type
-            attendances = get_attendance_record(attendance_name, attendance_code)
-            worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
-            attendances['number_of_days'] = round(sum(getattr(record, field) / 8.0 for record in worked_hours), 2)
-            attendances['number_of_hours'] = round(sum(getattr(record, field) for record in worked_hours), 2)
-            worked_hours_ids += worked_hours_ids.new(attendances)
-        
-        # Late attendance types
         attendance_dict = {
+            'OB': _("Official Business"),
             'LOB': _("Late Official Business"),
+            #'LWP': _("Leave With Pay"),
             'LateLWP': _("Late Leave With Pay"),
+            'LWOP': _("Leave Without Pay"),
             'LateLWOP': _("Late Leave Without Pay"),
         }
         
-        # Loop through the dictionary to create the attendance records
         worked_hours = self.get_worked_hour_lines(self.employee_id.contract_id.id, date_from, date_to)
         worked_hours_ids = self.worked_days_line_ids.browse([])
-        for code, name in attendance_dict.items():
-            attendances = {
-                'name': name,
-                'sequence': 1,
-                'code': code,
-                'number_of_days': 0.0,
-                'number_of_hours': 0.0,
-                'contract_id': contract.id,
-            }
+        for attendance_code, attendance_name in attendance_dict.items():
+            attendances = get_attendance_record(attendance_name, attendance_code)
             for record in worked_hours:
-                if record['code'] == code:
+                if record['code'] == attendance_code:
                     attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
                     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
             worked_hours_ids += worked_hours_ids.new(attendances)
@@ -3450,10 +3426,6 @@ class HRPayrollAttendance(models.Model):
                 attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
 
         worked_hours_ids += worked_hours_ids.new(attendances)
-
-        
-        # MARKER 1 END
-
 
         # # Official Business
         # attendances = {
