@@ -99,8 +99,8 @@ class LeavesAutomate(models.Model):
 class AdditionalTables(models.Model):
     _inherit = 'payroll.sss.contribution'
 
-    wisp_er = fields.Float(string="WISP (ER)")
-    wisp_ee = fields.Float(string="WISP (EE)")
+    wsip_er = fields.Float(string="WISP (ER)")
+    wsip_ee = fields.Float(string="WISP (EE)")
     
     total_er = fields.Float(string="TOTAL (ER)", 
                             default=0, 
@@ -114,18 +114,18 @@ class AdditionalTables(models.Model):
                             required=True,
                             store=True)
     
-    total_contrib = fields.Float(string="Total Contribution", 
+    total_amount = fields.Float(string="Total Contribution", 
                             default=0, 
                             compute="_compute_total_amount", 
                             required=True,
                             store=True)
     
-    @api.depends('wisp_er', 'wisp_ee', 'total_er', 'total_ee', 'contrib_ee', 'contrib_er')
+    @api.depends('wsip_er', 'wsip_ee', 'total_er', 'total_ee', 'contrib_ee', 'contrib_er')
     def _compute_total_amount(self):
         for record in self:
-            record.total_er = record.contrib_er + record.wisp_er
-            record.total_ee = record.contrib_ee + record.wisp_ee 
-            record.total_contrib = record.total_er + record.total_ee
+            record.total_er = record.contrib_er + record.wsip_er
+            record.total_ee = record.contrib_ee + record.wsip_ee 
+            record.total_amount = record.total_er + record.total_ee
     
 
 class SalaryRulesAdditional(models.Model):

@@ -8,11 +8,11 @@
         <field name="inherit_id" ref="hris.hr_payroll_sss_view_tree"/>        
         <field name='arch' type='xml'>
           <xpath expr="//field[@name='mpf_er']" position="after">
-            <field name="wisp_er"/>
-            <field name="wisp_ee" />
+            <field name="wsip_er"/>
+            <field name="wsip_ee" />
             <field name="total_er"/>
             <field name="total_ee"/>
-            <field name="total_contrib"/>
+            <field name="total_amount"/>
           </xpath>
         </field>  
     </record>
