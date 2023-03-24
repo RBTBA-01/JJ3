@@ -114,7 +114,7 @@ class AdditionalTables(models.Model):
                             required=True,
                             store=True)
     
-    total_amount = fields.Float(string="Total Amount", 
+    total_contrib = fields.Float(string="Total Contribution", 
                             default=0, 
                             compute="_compute_total_amount", 
                             required=True,
@@ -125,7 +125,7 @@ class AdditionalTables(models.Model):
         for record in self:
             record.total_er = record.contrib_er + record.wisp_er
             record.total_ee = record.contrib_ee + record.wisp_ee 
-            record.total_amount = record.total_er + record.total_ee
+            record.total_contrib = record.total_er + record.total_ee
     
 
 class SalaryRulesAdditional(models.Model):
