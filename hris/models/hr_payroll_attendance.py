@@ -3602,7 +3602,7 @@ class HRPayrollAttendance(models.Model):
             'contract_id': contract.id,
         }
         
-        for retrieval purposes (original code)
+#         for retrieval purposes (original code)
         for record in worked_hours:
             late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
             late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
