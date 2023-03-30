@@ -3492,7 +3492,7 @@ class HRPayrollAttendance(models.Model):
 
         worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
 
-        For retrieval purposes (original code)
+#         For retrieval purposes (original code)
         for record in worked_hours:
             attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
             attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
