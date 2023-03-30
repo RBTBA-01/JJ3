@@ -3492,23 +3492,23 @@ class HRPayrollAttendance(models.Model):
 
         worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
 
-        # For retrieval purposes (original code)
-        # for record in worked_hours:
-        #     attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-        #     attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
-
+        For retrieval purposes (original code)
         for record in worked_hours:
-            if record.late_hours > 0.000001:
-                late_hours_convert = record.late_hours*60
-                domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-                object = self.env['tardiness.table'].search(domain, limit=1)
-                equivalent_min = float(object.equivalent_min) / 60
+            attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
 
-                attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
-                attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
-            else:
-                attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+#         for record in worked_hours:
+#             if record.late_hours > 0.000001:
+#                 late_hours_convert = record.late_hours*60
+#                 domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+#                 object = self.env['tardiness.table'].search(domain, limit=1)
+#                 equivalent_min = float(object.equivalent_min) / 60
+
+#                 attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
+#                 attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
+#             else:
+#                 attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+#                 attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
 
         worked_hours_ids += worked_hours_ids.new(attendances)
 
@@ -3602,20 +3602,20 @@ class HRPayrollAttendance(models.Model):
             'contract_id': contract.id,
         }
         
-        # for retrieval purposes (original code)
-        # for record in worked_hours:
-        #     late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
-        #     late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
+        for retrieval purposes (original code)
+        for record in worked_hours:
+            late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
+            late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
 
         # New Logic for TD
-        for record in worked_hours:
-            late_hours_convert = record.late_hours*60
-            domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-            object = self.env['tardiness.table'].search(domain, limit=1)
-            equivalent_min = float(object.equivalent_min) / 60
+#         for record in worked_hours:
+#             late_hours_convert = record.late_hours*60
+#             domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+#             object = self.env['tardiness.table'].search(domain, limit=1)
+#             equivalent_min = float(object.equivalent_min) / 60
 
-            late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
-            late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
+#             late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
+#             late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
         
         worked_hours_ids += worked_hours_ids.new(late)
 
