@@ -3375,143 +3375,225 @@ class HRPayrollAttendance(models.Model):
         date_to = self.payroll_period_id.end_date
         #raise ValidationError(_("%s::::::%s:::::" % (self.date_from, self.payroll_period_id.start_date)))
         """Returns attendance record."""
+        
+        # MARKER 1 START
+        # Function to generate attendance record
+        def get_attendance_record(attendance_name, attendance_code):
+            return {
+                'name': attendance_name,
+                'sequence': 1,
+                'code': attendance_code,
+                'number_of_days': 0.0,
+                'number_of_hours': 0.0,
+                'contract_id': contract.id,
+            }
+            
+        # Initialize worked_hours_ids
+        worked_hours_ids = self.env['hr.payslip.worked_days'].browse([])
+        
+        # Non-Late attendance types
+        attendance_types = [
+            (_("Official Business"), "OB", "ob_hours"),
+            (_("Leave With Pay"), "LWP", "leave_hours"),
+            (_("Leave Without Pay"), "LWOP", "leave_wop_hours")
+        ]
 
-        # Official Business
-        attendances = {
-            'name': _("Official Business"),
-            'sequence': 1,
-            'code': 'OB',
-            'number_of_days': 0.0,
-            'number_of_hours': 0.0,
-            'contract_id': contract.id,
+        # Iterate over attendance_types and calculate the attendance record
+        for attendance_type in attendance_types:
+            attendance_name, attendance_code, field = attendance_type
+            attendances = get_attendance_record(attendance_name, attendance_code)
+            worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
+            attendances['number_of_days'] = round(sum(getattr(record, field) / 8.0 for record in worked_hours), 2)
+            attendances['number_of_hours'] = round(sum(getattr(record, field) for record in worked_hours), 2)
+            worked_hours_ids += worked_hours_ids.new(attendances)
+        
+        # Late attendance types
+        attendance_dict = {
+            'LOB': _("Late Official Business"),
+            'LateLWP': _("Late Leave With Pay"),
+            'LateLWOP': _("Late Leave Without Pay"),
         }
-
-        worked_hours = self.get_worked_day_lines(self.employee_id.contract_id.id, date_from, date_to)
+        
+        # Loop through the dictionary to create the attendance records
+        worked_hours = self.get_worked_hour_lines(self.employee_id.contract_id.id, date_from, date_to)
         worked_hours_ids = self.worked_days_line_ids.browse([])
-        for record in worked_hours:
-            if record['code'] == 'OB':
-                attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-
-        worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # Late Official Business
-        attendances = {
-            'name': _("Late Official Business"),
-            'sequence': 1,
-            'code': 'LOB',
-            'number_of_days': 0.0,
-            'number_of_hours': 0.0,
-            'contract_id': contract.id,
-        }
-
-        for record in worked_hours:
-            if record['code'] == 'LOB':
-                attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-
-        worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # Leave With Pay
-        attendances = {
-            'name': _("Leave With Pay"),
-            'sequence': 1,
-            'code': 'LWP',
-            'number_of_days': 0.0,
-            'number_of_hours': 0.0,
-            'contract_id': contract.id,
-        }
-
-        for record in worked_hours:
-            if record['code'] == 'LWP':
-                attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-
-        worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # Leave Without Pay
-        attendances = {
-            'name': _("Leave Without Pay"),
-            'sequence': 1,
-            'code': 'LWOP',
-            'number_of_days': 0.0,
-            'number_of_hours': 0.0,
-            'contract_id': contract.id,
-        }
-
-        for record in worked_hours:
-            if record['code'] == 'LWOP':
-                attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-
-        worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # Late Leave With Pay
-        attendances = {
-            'name': _("Late Leave With Pay"),
-            'sequence': 1,
-            'code': 'LateLWP',
-            'number_of_days': 0.0,
-            'number_of_hours': 0.0,
-            'contract_id': contract.id,
-        }
-
-        for record in worked_hours:
-            if record['code'] == 'LateLWP':
-                attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-
-        worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # Late Leave Without Pay
-        attendances = {
-            'name': _("Late Leave Without Pay"),
-            'sequence': 1,
-            'code': 'LateLWOP',
-            'number_of_days': 0.0,
-            'number_of_hours': 0.0,
-            'contract_id': contract.id,
-        }
-
-        for record in worked_hours:
-            if record['code'] == 'LateLWOP':
-                attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-
-        worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # attendances
-        attendances = {
-            'name': _("Regular Work"),
-            'sequence': 1,
-            'code': 'RegWrk',
-            'number_of_days': 0.0,
-            'number_of_hours': 0.0,
-            'contract_id': contract.id,
-        }
-
+        for code, name in attendance_dict.items():
+            attendances = {
+                'name': name,
+                'sequence': 1,
+                'code': code,
+                'number_of_days': 0.0,
+                'number_of_hours': 0.0,
+                'contract_id': contract.id,
+            }
+            for record in worked_hours:
+                if record['code'] == code:
+                    attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
+                    attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
+            worked_hours_ids += worked_hours_ids.new(attendances)
+        
+        # Regular Work
+        attendances = get_attendance_record(_("Regular Work"), "RegWrk")
         worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
 
-#         For retrieval purposes (original code)
         for record in worked_hours:
-            attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-            attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+            if record.late_hours > 0.000001:
+                late_hours_convert = record.late_hours * 60
+                domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+                object = self.env['tardiness.table'].search(domain, limit=1)
+                equivalent_min = float(object.equivalent_min) / 60
 
-#         for record in worked_hours:
-#             if record.late_hours > 0.000001:
-#                 late_hours_convert = record.late_hours*60
-#                 domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-#                 object = self.env['tardiness.table'].search(domain, limit=1)
-#                 equivalent_min = float(object.equivalent_min) / 60
-
-#                 attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
-#                 attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
-#             else:
-#                 attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-#                 attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+                attendances['number_of_days'] += float_round(1 - (equivalent_min / 8), precision_digits=2)
+                attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
+            else:
+                attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+                attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
 
         worked_hours_ids += worked_hours_ids.new(attendances)
 
+        
+        # MARKER 1 END
+
+
+        # # Official Business
+        # attendances = {
+        #     'name': _("Official Business"),
+        #     'sequence': 1,
+        #     'code': 'OB',
+        #     'number_of_days': 0.0,
+        #     'number_of_hours': 0.0,
+        #     'contract_id': contract.id,
+        # }
+
+        # worked_hours = self.get_worked_day_lines(self.employee_id.contract_id.id, date_from, date_to)
+        # worked_hours_ids = self.worked_days_line_ids.browse([])
+        # for record in worked_hours:
+        #     # if record['code'] == 'OB':
+        #     attendances['number_of_days'] += float_round(record.ob_hours / 8.0, precision_digits=2)
+        #     attendances['number_of_hours'] += float_round(record.ob_hours, precision_digits=2)
+
+        # worked_hours_ids += worked_hours_ids.new(attendances)
+
+        # # Late Official Business
+        # attendances = {
+        #     'name': _("Late Official Business"),
+        #     'sequence': 1,
+        #     'code': 'LOB',
+        #     'number_of_days': 0.0,
+        #     'number_of_hours': 0.0,
+        #     'contract_id': contract.id,
+        # }
+
+        # # for record in worked_hours:
+        # #    if record['code'] == 'LOB':
+        # #     attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
+        # #     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
+
+        # worked_hours_ids += worked_hours_ids.new(attendances)
+
+        # # marker
+        # worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
+    
+        # # Leave With Pay
+        # attendances = {
+        #     'name': _("Leave With Pay"),
+        #     'sequence': 1,
+        #     'code': 'LWP',
+        #     'number_of_days': 0.0,
+        #     'number_of_hours': 0.0,
+        #     'contract_id': contract.id,
+        # }
+
+        # for record in worked_hours:
+        # #    if record['code'] == 'LWP':
+        #     attendances['number_of_days'] += float_round(record.leave_hours / 8.0, precision_digits=2)
+        #     attendances['number_of_hours'] += float_round(record.leave_hours , precision_digits=2)
+
+        # worked_hours_ids += worked_hours_ids.new(attendances)
+
+        # # Leave Without Pay
+        # attendances = {
+        #     'name': _("Leave Without Pay"),
+        #     'sequence': 1,
+        #     'code': 'LWOP',
+        #     'number_of_days': 0.0,
+        #     'number_of_hours': 0.0,
+        #     'contract_id': contract.id,
+        # }
+
+        # for record in worked_hours:
+        # #    if record['code'] == 'LWOP':
+        #     attendances['number_of_days'] += float_round(record.leave_wop_hours / 8.0, precision_digits=2)
+        #     attendances['number_of_hours'] += float_round(record.leave_wop_hours, precision_digits=2)
+
+        # worked_hours_ids += worked_hours_ids.new(attendances)
+
+        # # Late Leave With Pay
+        # attendances = {
+        #     'name': _("Late Leave With Pay"),
+        #     'sequence': 1,
+        #     'code': 'LateLWP',
+        #     'number_of_days': 0.0,
+        #     'number_of_hours': 0.0,
+        #     'contract_id': contract.id,
+        # }
+
+        # # for record in worked_hours:
+        # #    if record['code'] == 'LateLWP':
+        # #     attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
+        # #     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
+
+        # worked_hours_ids += worked_hours_ids.new(attendances)
+
+        # # Late Leave Without Pay
+        # attendances = {
+        #     'name': _("Late Leave Without Pay"),
+        #     'sequence': 1,
+        #     'code': 'LateLWOP',
+        #     'number_of_days': 0.0,
+        #     'number_of_hours': 0.0,
+        #     'contract_id': contract.id,
+        # }
+
+        # # for record in worked_hours:
+        # #    if record['code'] == 'LateLWOP':
+        # #     attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
+        # #     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
+
+        # worked_hours_ids += worked_hours_ids.new(attendances)
+
+        # # attendances
+        # attendances = {
+        #     'name': _("Regular Work"),
+        #     'sequence': 1,
+        #     'code': 'RegWrk',
+        #     'number_of_days': 0.0,
+        #     'number_of_hours': 0.0,
+        #     'contract_id': contract.id,
+        # }
+
+        # worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
+
+        # # For retrieval purposes (original code)
+        # # for record in worked_hours:
+        # #     attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+        # #     attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+
+        # for record in worked_hours:
+        #     if record.late_hours > 0.000001:
+        #         late_hours_convert = record.late_hours*60
+        #         domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+        #         object = self.env['tardiness.table'].search(domain, limit=1)
+        #         equivalent_min = float(object.equivalent_min) / 60
+
+        #         attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
+        #         attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
+        #     else:
+        #         attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+        #         attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+
+        # worked_hours_ids += worked_hours_ids.new(attendances)
+        
         # Rest Day OT Night Diff
         # rest_day_ot_night_diff = {
         #     'name': _("Rest Day OT Night Diff"),
@@ -3602,20 +3684,20 @@ class HRPayrollAttendance(models.Model):
             'contract_id': contract.id,
         }
         
-#         for retrieval purposes (original code)
-        for record in worked_hours:
-            late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
-            late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
+        # for retrieval purposes (original code)
+        # for record in worked_hours:
+        #     late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
+        #     late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
 
         # New Logic for TD
-#         for record in worked_hours:
-#             late_hours_convert = record.late_hours*60
-#             domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-#             object = self.env['tardiness.table'].search(domain, limit=1)
-#             equivalent_min = float(object.equivalent_min) / 60
+        for record in worked_hours:
+            late_hours_convert = record.late_hours*60
+            domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+            object = self.env['tardiness.table'].search(domain, limit=1)
+            equivalent_min = float(object.equivalent_min) / 60
 
-#             late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
-#             late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
+            late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
+            late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
         
         worked_hours_ids += worked_hours_ids.new(late)
 
