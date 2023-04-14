@@ -1619,6 +1619,9 @@ class HRAttendance(models.Model):
                         leave_wp_hours += leave_hours['leave_wp_hours']
                         leave_wop_hours += leave_hours['leave_wop_hours']
                         worked_leave_hours = leave_hours['worked_hours']
+                        delta_leaves = date_out - date_in
+                        leaves_num_days = delta_leaves.days
+                        leave_wp_hours = leaves_num_days * leave_wp_hours
                     attendance.leave_hours = leave_wp_hours > 0 and leave_wp_hours or 0
                     attendance.leave_wop_hours = leave_wop_hours > 0 and leave_wop_hours or 0
                     if not attendance.is_absent and not attendance.is_holiday and not attendance.is_leave and not attendance.is_ob:
