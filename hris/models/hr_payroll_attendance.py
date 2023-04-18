@@ -1826,11 +1826,7 @@ class HRAttendance(models.Model):
         # Added code - start marker
         """COMPUTE LWP in Attendances Module"""
         if leave.holiday_status_id.leave_remarks == 'wp' and not leave.holiday_status_id.is_ob:
-            # leave_wp_hours += leave_hours
-            delta_leaves = date_to - date_from
-            leave_days = (delta_leaves.days) + float(delta_leaves.seconds) / 28800
-            leave_wp_hours = leave_days * 8
-            # raise ValidationError(leave_wp_hours)
+            leave_wp_hours += leave_hours
         # Added code - end marker
         elif leave.holiday_status_id.leave_remarks == 'wop' and not leave.holiday_status_id.is_ob:
             leave_wop_hours += leave_hours
