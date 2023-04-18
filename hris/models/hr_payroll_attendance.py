@@ -1823,8 +1823,15 @@ class HRAttendance(models.Model):
                 [required_in, date_in])).total_seconds() / 3600.0
             leave_hours += (min([required_out, date_to]) - max(
                 [required_in, date_from])).total_seconds() / 3600.0
+        # Added code - start marker
+        """COMPUTE LWP in Attendances Module"""
         if leave.holiday_status_id.leave_remarks == 'wp' and not leave.holiday_status_id.is_ob:
-            leave_wp_hours += leave_hours
+            # leave_wp_hours += leave_hours
+            delta_leaves = date_to - date_from
+            leave_days = (delta_leaves.days) + float(delta_leaves.seconds) / 28800
+            leave_wp_hours = leave_days * 8
+            # raise ValidationError(leave_wp_hours)
+        # Added code - end marker
         elif leave.holiday_status_id.leave_remarks == 'wop' and not leave.holiday_status_id.is_ob:
             leave_wop_hours += leave_hours
 
@@ -3093,13 +3100,19 @@ class HRPayrollAttendance(models.Model):
             holidays = was_on_leave_interval(contract.employee_id.id, start_dt, end_dt)
             lockout_holidays = ob_lockout_interval(contract.employee_id.id, start_dt, end_dt)
             lockout_leaves = lockout_leaves_interval(contract.employee_id.id, start_dt, end_dt)
-
+            # Added code - start marker
+            """SHOW LWP ROWS in Re-Process Button"""
             for holiday in holidays.filtered(lambda r: r.process_type == False and r.holiday_status_id.is_ob == False):
                 # we need only the paid leaves
                 if (holiday.holiday_status_id.leave_remarks
                         and holiday.holiday_status_id.leave_remarks != 'wp'):
                     continue
                 hours = 0
+                """COMPUTE THE LEAVE WITH PAY IN PAYROLL MODULE"""
+                leaves_duration = (Datetime.from_string(holiday.date_to) - Datetime.from_string(holiday.date_from))
+                leave_days = (leaves_duration.days) + float(leaves_duration.seconds) / 28800
+                hours  = leave_days * 8.0
+                # Added code - end marker
                 if holiday.date_approved >= date_from and holiday.date_approved <= date_release and (not holiday.holiday_status_id.lockout or
                                                                                                      (holiday.holiday_status_id.lockout and holiday.date_from >= date_from and holiday.date_from <= date_to and
                                                                                                       holiday.date_to >= date_from and holiday.date_to <= date_to)):
@@ -3848,7 +3861,9 @@ class HRPayrollAttendance(models.Model):
             return
 
         # for contract in self.env['hr.contract'].browse(record.contract_id.id):
-        self.worked_days_line_ids = []
+        # Edited code - start marker
+        # self.worked_days_line_ids = []
+        # Edited code - end marker
         #hr_attendance_request = self.env['hr.attendance.request'].search([('employee_id','=',self.employee_id.id),('payroll_period_id','=',self.payroll_period_id.id)],limit=1)
         # hr_attendance_request.prepare_payslip()
         self.pull_attendance(self.contract_id)
