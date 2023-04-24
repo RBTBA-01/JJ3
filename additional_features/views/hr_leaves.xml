@@ -8,6 +8,7 @@
 		     <field name="inherit_id" ref="hr_holidays.edit_holiday_new" />
 		     <field name="arch" type="xml">
 				 <xpath expr="//field[@name='holiday_status_id']" position="after">
+				 	 <field name="leave_approve_date" />
 		     		 <field name="show_leave_credit" invisible="1" />
 		     		 <field name="is_carry_over" invisible="1" />
 		     		 <field name="carry_over_id"  invisible="1"  options="{'no_create':True, 'no_create_edit':True, 'no_open':True}" />

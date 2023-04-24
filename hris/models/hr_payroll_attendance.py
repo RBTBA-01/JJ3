@@ -27,7 +27,7 @@ to_string = Datetime.to_string
 
 TIME_TO_RENDER = 8.0
 HOURS_PER_DAY = 8.0
-
+    
 
 def convert_time_to_float(time):
     hours = time.seconds // 3600
@@ -1981,6 +1981,55 @@ class HRAttendance(models.Model):
                 rec.is_leave = False
 
 
+    # DANIEL MARKER
+    def get_date_intersection(date_ranges):
+        # Convert the date strings to datetime objects
+        date_ranges = [(datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), 
+                        datetime.strptime(end, '%Y-%m-%d %H:%M:%S')) 
+                    for start, end in date_ranges]
+
+        # Sort the date ranges by start time
+        date_ranges.sort(key=lambda x: x[0])
+
+        # Check intersection of all date ranges
+        max_start = date_ranges[0][0]
+        min_end = date_ranges[0][1]
+        for i in range(1, len(date_ranges)):
+            start_i, end_i = date_ranges[i]
+            if start_i <= min_end:
+                max_start = max(max_start, start_i)
+                min_end = min(min_end, end_i)
+            else:
+                # No overlap, return None
+                return None
+
+        return max_start, min_end
+
+
+    def gen_schedule_out(self):
+        self.schedule_out = self.schedule_in + timedelta(hours=9)
+
+    
+    # NIGHT DIFF
+    def calculate_night_hours(date_range):
+        start_time, end_time = date_range
+        night_start = datetime.strptime(start_time.strftime('%Y-%m-%d') + ' 22:00:00', '%Y-%m-%d %H:%M:%S')
+        night_end = datetime.strptime(start_time.strftime('%Y-%m-%d') + ' 06:00:00', '%Y-%m-%d %H:%M:%S') + timedelta(days=1)
+        night_hours = 0
+
+        # Calculate the number of seconds in the timedelta object
+        night_seconds = (night_end - night_start).seconds + (night_end - night_start).days * 24 * 3600
+
+        # If the time range doesn't overlap with the night hours, return 0
+        if end_time <= night_start or start_time >= night_end:
+            return night_hours
+
+        # Otherwise, calculate the number of night hours as the minimum of the night hours and the duration of the time range
+        else:
+            night_hours = int(min(night_seconds / 3600, (end_time - start_time).total_seconds() / 3600))
+            return night_hours
+
+
 class HRAttendanceChange(models.Model):
     _name = 'hr.attendance.change'
     _description = 'Request for Change of Attendance'
@@ -2922,6 +2971,8 @@ class HRPayrollAttendance(models.Model):
     _inherit = 'hr.payslip'
     _order = 'date_release DESC'
 
+    late_attendances = fields.Many2many('hr.attendance')
+
     def get_year_to_date(self, employee_id, date_from=None, date_to=None):
         """Returns the total year to date of each salary rule."""
         if date_from is None:
@@ -2973,300 +3024,6 @@ class HRPayrollAttendance(models.Model):
         self.remove_payslip_reference()
         return res
 
-    @api.model
-    def get_worked_day_lines(self, contract_ids, date_from, date_to):
-        """
-        @param contract_ids: list of contract id
-        @return: returns a list of dict containing the input that should be applied for the given contract between date_from and date_to
-        """
-        leaves = {}
-        res = []
-        if not self.payroll_period_id:
-            return res
-        date_release = self.payroll_period_id.date_release
-
-        def lockout_leaves_interval(employee_id, date_from, date_to):
-            date_from = fields.Datetime.to_string(date_from)
-            date_to = fields.Datetime.to_string(date_to)
-            date_release = self.payroll_period_id.date_release
-            leaves = {}
-            holiday_lockout_status = self.env['hr.holidays.status'].search([('is_ob', '=', False),
-                                                                            ('lockout', '=', True),
-                                                                            ('active', '=', True)])
-            holiday_status = holiday_lockout_status.filtered(lambda l: l.leave_remarks == 'wop' or l.leave_remarks == 'wp')
-
-            late_leave = self.env['hr.holidays']
-            if holiday_status:
-                leave = self.env['hr.holidays'].search([('employee_id', '=', employee_id),
-                                                        ('date_approved', '>=', date_from),
-                                                        ('date_approved', '<=', date_release),
-                                                        ('type', '=', 'remove'),
-                                                        ('state', '=', 'validate'),
-                                                        ('holiday_status_id', 'in', holiday_status.ids),
-                                                        ('date_from', '<=', date_from),
-                                                        ('date_to', '<=', date_to),
-                                                        ])
-                period_line_ids = self.env['hr.payroll.period_line'].search([], order='start_date')
-                for rec in leave:
-                    payroll_period = period_line_ids.filtered(lambda l: l.start_date <= rec.date_from and l.end_date >= rec.date_to)
-                    if self.payroll_period_id and payroll_period:
-                        time_period = period_line_ids.ids.index(self.payroll_period_id.id) - period_line_ids.ids.index(payroll_period.id)
-                        leave_lockout_period = rec.holiday_status_id.lockout_period
-                        if float(leave_lockout_period) >= time_period:
-                            late_leave |= rec
-            late_leaves = late_leave.filtered(lambda r: r.process_type == False and r.holiday_status_id.is_ob == False)
-            leaves.update({'wop': late_leaves.filtered(lambda l: l.holiday_status_id.leave_remarks == 'wop'),
-                           'wp': late_leaves.filtered(lambda l: l.holiday_status_id.leave_remarks == 'wp')})
-#             leaves += late_leave.filtered(lambda r: r.process_type == False and r.holiday_status_id.is_ob == False)
-            return leaves
-
-        def ob_lockout_interval(employee_id, date_from, date_to):
-            date_from = fields.Datetime.to_string(date_from)
-            date_to = fields.Datetime.to_string(date_to)
-            date_release = fields.datetime.strptime(self.payroll_period_id.date_release, "%Y-%m-%d")
-            date_release = fields.Datetime.to_string(date_release)
-            holidays = []
-            holiday = self.env['hr.holidays'].search([('employee_id', '=', employee_id),
-                                                      ('date_approved', '>=', date_from),
-                                                      ('date_approved', '<=', date_release),
-                                                      ('type', '=', 'remove'),
-                                                      ('state', '=', 'validate'),
-                                                      ('date_from', '<=', date_from),
-                                                      ('date_to', '<=', date_to),
-                                                      ])
-            lockout_ob_period = self.env['ir.config_parameter'].get_param('default.ob.lockout.period', 0)
-            late_holiday = self.env['hr.holidays']
-            if self.env['ir.config_parameter'].get_param('default.ob.lockout', False) and lockout_ob_period:
-                period_line_ids = self.env['hr.payroll.period_line'].search([], order='start_date')
-                for rec in holiday:
-                    payroll_period = period_line_ids.filtered(lambda l: l.start_date <= rec.date_from and l.end_date >= rec.date_to)
-                    if self.payroll_period_id and payroll_period:
-                        time_period = period_line_ids.ids.index(self.payroll_period_id.id) - period_line_ids.ids.index(payroll_period.id)
-                        if float(lockout_ob_period) >= time_period:
-                            late_holiday |= rec
-            holidays += late_holiday.filtered(lambda r: r.process_type == False and r.holiday_status_id.is_ob == True)
-            return holidays
-
-        def was_on_leave_interval(employee_id, date_from, date_to):
-            date_from = fields.Datetime.to_string(date_from)
-            date_to = fields.Datetime.to_string(date_to)
-            date_release = self.payroll_period_id.date_release
-            # unpaid leaves
-            holidays = self.env['hr.holidays'].search([
-                ('state', '=', 'validate'),
-                ('employee_id', '=', employee_id),
-                ('type', '=', 'remove'),
-                ('process_type', '=', False),
-                ('date_from', '>=', date_from),
-                ('date_to', '<=', date_to)
-            ])
-            holidays |= self.env['hr.holidays'].search([
-                ('state', '=', 'validate'),
-                ('employee_id', '=', employee_id),
-                ('type', '=', 'remove'),
-                ('process_type', '=', False),
-                ('date_approved', '>=', date_from),
-                ('date_approved', '<=', date_release),
-                ('leave_adjustment', '=', False)
-            ])
-            # Leave conversion
-            holidays |= self.env['hr.holidays'].search([
-                ('state', '=', 'validate'),
-                ('employee_id', '=', employee_id),
-                ('type', '=', 'remove'),
-                ('process_type', '=', 'converted'),
-                ('date_processed', '>=', date_from),
-                ('date_processed', '<=', date_to)
-            ])
-            return holidays
-
-        # fill only if the contract as a working schedule linked
-        uom_day = self.env.ref('product.product_uom_day', raise_if_not_found=False)
-        for contract in self.env['hr.contract'].browse(contract_ids):
-            uom_hour = contract.employee_id.resource_id.calendar_id.uom_id or self.env.ref('product.product_uom_hour',
-                                                                                           raise_if_not_found=False)
-
-            date_f = fields.Datetime.from_string(date_from)
-            date_t = fields.Datetime.from_string(date_to)
-
-            start_dt = date_f.replace(hour=0, minute=0, second=0, microsecond=0)
-            #end_dt = date_t.replace(hour=23, minute=59, second=59, microsecond=999999)
-            end_dt = date_t.replace(hour=7, minute=0, second=59, microsecond=999999) + timedelta(days=1)
-
-            holidays = was_on_leave_interval(contract.employee_id.id, start_dt, end_dt)
-            lockout_holidays = ob_lockout_interval(contract.employee_id.id, start_dt, end_dt)
-            lockout_leaves = lockout_leaves_interval(contract.employee_id.id, start_dt, end_dt)
-            # Added code - start marker
-            """SHOW LWP ROWS in Re-Process Button"""
-            for holiday in holidays.filtered(lambda r: r.process_type == False and r.holiday_status_id.is_ob == False):
-                # we need only the paid leaves
-                if (holiday.holiday_status_id.leave_remarks
-                        and holiday.holiday_status_id.leave_remarks != 'wp'):
-                    continue
-                hours = 0
-                """COMPUTE THE LEAVE WITH PAY IN PAYROLL MODULE"""
-                leaves_duration = (Datetime.from_string(holiday.date_to) - Datetime.from_string(holiday.date_from))
-                leave_days = (leaves_duration.days) + float(leaves_duration.seconds) / 28800
-                hours  = leave_days * 8.0
-                # Added code - end marker
-                if holiday.date_approved >= date_from and holiday.date_approved <= date_release and (not holiday.holiday_status_id.lockout or
-                                                                                                     (holiday.holiday_status_id.lockout and holiday.date_from >= date_from and holiday.date_from <= date_to and
-                                                                                                      holiday.date_to >= date_from and holiday.date_to <= date_to)):
-                    hours = abs(holiday.number_of_days) * 8
-                # if he was on leave, fill the leaves dict
-                if holiday.holiday_status_id.name in leaves:
-                    leaves[holiday.holiday_status_id.name]['number_of_hours'] += hours
-                else:
-                    leaves[holiday.holiday_status_id.name] = {
-                        'name': 'Leave with Pay',
-                        'sequence': 5,
-                        'code': 'LWP',
-                        'number_of_days': 0.0,
-                        'number_of_hours': hours,
-                        'contract_id': contract.id,
-                    }
-            for holiday in holidays.filtered(lambda r: r.process_type == False and r.holiday_status_id.is_ob == False):
-                # we need only the unpaid leaves
-                if (holiday.holiday_status_id.leave_remarks
-                        and holiday.holiday_status_id.leave_remarks != 'wop'):
-                    continue
-
-                hours = 0
-                if holiday.date_approved >= date_from and holiday.date_approved <= date_release and (not holiday.holiday_status_id.lockout or
-                                                                                                     (holiday.holiday_status_id.lockout and holiday.date_from >= date_from and holiday.date_from <= date_to and
-                                                                                                      holiday.date_to >= date_from and holiday.date_to <= date_to)):
-                    hours = abs(holiday.number_of_days) * 8.0
-                # if he was on leave, fill the leaves dict
-                if holiday.holiday_status_id.name in leaves:
-                    leaves[holiday.holiday_status_id.name]['number_of_hours'] += hours
-                else:
-                    leaves[holiday.holiday_status_id.name] = {
-                        'name': 'Leave without Pay',
-                        'sequence': 6,
-                        'code': 'LWOP',
-                        'number_of_days': 0.0,
-                        'number_of_hours': hours,
-                        'contract_id': contract.id,
-                    }
-            for holiday in holidays.filtered(lambda r: r.process_type == False and r.holiday_status_id.is_ob == True):
-                # we need only the paid leaves
-                if (holiday.holiday_status_id.leave_remarks
-                        and holiday.holiday_status_id.leave_remarks == 'wop'):
-                    continue
-
-                hours = 0
-                lockout_ob = self.env['ir.config_parameter'].get_param('default.ob.lockout', False)
-
-                if holiday.date_approved >= date_from and holiday.date_approved <= date_release and (not lockout_ob or
-                                                                                                     (lockout_ob and holiday.date_from >= date_from and holiday.date_from <= date_to and
-                                                                                                      holiday.date_to >= date_from and holiday.date_to <= date_to)):
-                    hours = abs(holiday.number_of_days) * 8.0
-                # if he was on leave, fill the leaves dict
-                if holiday.holiday_status_id.name in leaves:
-                    leaves[holiday.holiday_status_id.name]['number_of_hours'] += hours
-                else:
-                    leaves[holiday.holiday_status_id.name] = {
-                        'name': 'Official Business',
-                        'sequence': 7,
-                        'code': 'OB',
-                        'number_of_days': 0.0,
-                        'number_of_hours': hours,
-                        'contract_id': contract.id,
-                    }
-
-            for holiday in lockout_holidays:
-                # we need only the paid leaves
-                if (holiday.holiday_status_id.leave_remarks
-                        and holiday.holiday_status_id.leave_remarks == 'wop'):
-                    continue
-
-                holiday.write({'hr_payslip_id': not self.id and self._origin.id or self.id})
-                hours = abs(holiday.number_of_days) * 8.0
-                # if he was on leave, fill the leaves dict
-                if holiday.holiday_status_id.name in leaves and leaves[holiday.holiday_status_id.name]['code'] == 'LOB':
-                    leaves[holiday.holiday_status_id.name]['number_of_hours'] += hours
-                else:
-                    leaves[holiday.holiday_status_id.name] = {
-                        'name': 'Late Official Business',
-                        'sequence': 7,
-                        'code': 'LOB',
-                        'number_of_days': 0.0,
-                        'number_of_hours': hours,
-                        'contract_id': contract.id,
-                    }
-
-            for holiday in lockout_leaves['wp']:
-                # we need only the paid leaves
-                if (holiday.holiday_status_id.leave_remarks
-                        and holiday.holiday_status_id.leave_remarks != 'wp'):
-                    continue
-
-                holiday.write({'hr_payslip_id': not self.id and self._origin.id or self.id})
-                hours = abs(holiday.number_of_days) * 8.0
-                # if he was on leave, fill the leaves dict
-                if holiday.holiday_status_id.name in leaves and leaves[holiday.holiday_status_id.name]['code'] == ['LateLWP']:
-                    leaves[holiday.holiday_status_id.name]['number_of_hours'] += hours
-                else:
-                    leaves[holiday.holiday_status_id.name] = {
-                        'name': 'Late Leave With Pay',
-                        'sequence': 7,
-                        'code': 'LateLWP',
-                        'number_of_days': 0.0,
-                        'number_of_hours': hours,
-                        'contract_id': contract.id,
-                    }
-
-            for holiday in lockout_leaves['wop']:
-                # we need only the paid leaves
-                if (holiday.holiday_status_id.leave_remarks
-                        and holiday.holiday_status_id.leave_remarks != 'wop'):
-                    continue
-
-                holiday.write({'hr_payslip_id': not self.id and self._origin.id or self.id})
-                hours = abs(holiday.number_of_days) * 8.0
-                # if he was on leave, fill the leaves dict
-                if holiday.holiday_status_id.name in leaves and leaves[holiday.holiday_status_id.name]['code'] == ['LateLWOP']:
-                    leaves[holiday.holiday_status_id.name]['number_of_hours'] += hours
-                else:
-                    leaves[holiday.holiday_status_id.name] = {
-                        'name': 'Late Leave Without Pay',
-                        'sequence': 7,
-                        'code': 'LateLWOP',
-                        'number_of_days': 0.0,
-                        'number_of_hours': hours,
-                        'contract_id': contract.id,
-                    }
-
-            for holiday in holidays.filtered(lambda r: r.process_type == 'converted'):
-                if holiday:
-
-                    if (holiday.holiday_status_id.leave_remarks
-                            and holiday.holiday_status_id.leave_remarks != 'wp'):
-                        continue
-
-                    hours = abs(holiday.number_of_days) * 8.0
-                    # if he was on leave, fill the leaves dict
-                    if holiday.holiday_status_id.code in leaves:
-                        leaves[holiday.holiday_status_id.code]['number_of_hours'] += hours
-                    else:
-                        leaves[holiday.holiday_status_id.code] = {
-                            'name': holiday.holiday_status_id.name + '(Conv)',
-                            'sequence': 5,
-                            'code': holiday.holiday_status_id.code,
-                            'number_of_days': 0.0,
-                            'number_of_hours': hours,
-                            'contract_id': contract.id,
-                        }
-
-            # Clean-up the results
-            _leaves = [value for key, value in leaves.items()]
-            for data in _leaves:
-                data['number_of_days'] = uom_hour._compute_quantity(data['number_of_hours'], uom_day) \
-                    if uom_day and uom_hour \
-                    else data['number_of_hours'] / 8.0
-                res.append(data)
-
-        return res
 
     def get_worked_hour_lines(self, employee_id, date_from, date_to):
         """Returns employee attendances timesheet."""
@@ -3285,7 +3042,7 @@ class HRPayrollAttendance(models.Model):
                   ('check_in', '>=', date_from),
                   ('check_out', '<=', date_to),
                   ('request_change_id', '=', False)]
-
+        
         att = self.env['hr.attendance'].search(domain)
 
         domain = [('employee_id', '=', employee_id),
@@ -3382,78 +3139,44 @@ class HRPayrollAttendance(models.Model):
     def pull_attendance(self, contract):
         date_from = self.payroll_period_id.start_date
         date_to = self.payroll_period_id.end_date
+        worked_hours_ids = self.worked_days_line_ids.browse([])
         #raise ValidationError(_("%s::::::%s:::::" % (self.date_from, self.payroll_period_id.start_date)))
         """Returns attendance record."""
         
-        def get_attendance_record(attendance_name, attendance_code):
-            return {
-                'name': attendance_name,
-                'sequence': 1,
-                'code': attendance_code,
-                'number_of_days': 0.0,
-                'number_of_hours': 0.0,
-                'contract_id': contract.id,
-            }
-            
-        # Initialize worked_hours_ids
-        worked_hours_ids = self.env['hr.payslip.worked_days'].browse([])
-        
-        attendance_dict = {
-            'OB': _("Official Business"),
-            'LOB': _("Late Official Business"),
-            #'LWP': _("Leave With Pay"),
-            'LateLWP': _("Late Leave With Pay"),
-            'LWOP': _("Leave Without Pay"),
-            'LateLWOP': _("Late Leave Without Pay"),
-        }
-        
-        worked_hours = self.get_worked_hour_lines(self.employee_id.contract_id.id, date_from, date_to)
-        worked_hours_ids = self.worked_days_line_ids.browse([])
-        for attendance_code, attendance_name in attendance_dict.items():
-            attendances = get_attendance_record(attendance_name, attendance_code)
-            for record in worked_hours:
-                if record['code'] == attendance_code:
-                    attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-                    attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-            worked_hours_ids += worked_hours_ids.new(attendances)
-        
-        # Regular Work
-        attendances = get_attendance_record(_("Regular Work"), "RegWrk")
+        # Searches for leave attendances that are within the payroll period
+        leave_attendances = self.env['hr.attendance'].search([
+            ('leave_ids.leave_approve_date', '<=', date_to),
+            ('leave_ids.leave_approve_date', '>=', date_from),
+            ('employee_id', '=', self.employee_id.id), 
+        ])
+
+        # Converted leave_attendances to table format
+        x = [x for x in leave_attendances]
+
+        # Initializes worked_hours
         worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
+        
+        # Subtracts the values of leave_attendances from worked_hours
+        late_attendance_list = [item for item in x if item not in worked_hours]
+
+        # Attach the computed values from late_attendance_list to another table inside the payslip (Late Processing)
+        self.late_attendances = [(4, i.id, None) for i in late_attendance_list]
+        
+        # Official Business
+        attendances = {
+            'name': _("Official Business"),
+            'sequence': 1,
+            'code': 'OB',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
 
         for record in worked_hours:
-            if record.late_hours > 0.000001:
-                late_hours_convert = record.late_hours * 60
-                domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-                object = self.env['tardiness.table'].search(domain, limit=1)
-                equivalent_min = float(object.equivalent_min) / 60
-
-                attendances['number_of_days'] += float_round(1 - (equivalent_min / 8), precision_digits=2)
-                attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
-            else:
-                attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+            attendances['number_of_days'] += float_round(record.ob_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.ob_hours, precision_digits=2)
 
         worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # # Official Business
-        # attendances = {
-        #     'name': _("Official Business"),
-        #     'sequence': 1,
-        #     'code': 'OB',
-        #     'number_of_days': 0.0,
-        #     'number_of_hours': 0.0,
-        #     'contract_id': contract.id,
-        # }
-
-        # worked_hours = self.get_worked_day_lines(self.employee_id.contract_id.id, date_from, date_to)
-        # worked_hours_ids = self.worked_days_line_ids.browse([])
-        # for record in worked_hours:
-        #     # if record['code'] == 'OB':
-        #     attendances['number_of_days'] += float_round(record.ob_hours / 8.0, precision_digits=2)
-        #     attendances['number_of_hours'] += float_round(record.ob_hours, precision_digits=2)
-
-        # worked_hours_ids += worked_hours_ids.new(attendances)
 
         # # Late Official Business
         # attendances = {
@@ -3471,60 +3194,54 @@ class HRPayrollAttendance(models.Model):
         # #     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
 
         # worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # # marker
-        # worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
     
-        # # Leave With Pay
-        # attendances = {
-        #     'name': _("Leave With Pay"),
-        #     'sequence': 1,
-        #     'code': 'LWP',
-        #     'number_of_days': 0.0,
-        #     'number_of_hours': 0.0,
-        #     'contract_id': contract.id,
-        # }
+        # Leave With Pay
+        attendances = {
+            'name': _("Leave With Pay"),
+            'sequence': 1,
+            'code': 'LWP',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
 
-        # for record in worked_hours:
-        # #    if record['code'] == 'LWP':
-        #     attendances['number_of_days'] += float_round(record.leave_hours / 8.0, precision_digits=2)
-        #     attendances['number_of_hours'] += float_round(record.leave_hours , precision_digits=2)
+        for record in worked_hours:
+            attendances['number_of_days'] += float_round(record.leave_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.leave_hours , precision_digits=2)
 
-        # worked_hours_ids += worked_hours_ids.new(attendances)
+        worked_hours_ids += worked_hours_ids.new(attendances)
 
-        # # Leave Without Pay
-        # attendances = {
-        #     'name': _("Leave Without Pay"),
-        #     'sequence': 1,
-        #     'code': 'LWOP',
-        #     'number_of_days': 0.0,
-        #     'number_of_hours': 0.0,
-        #     'contract_id': contract.id,
-        # }
+        # Leave Without Pay
+        attendances = {
+            'name': _("Leave Without Pay"),
+            'sequence': 1,
+            'code': 'LWOP',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
 
-        # for record in worked_hours:
-        # #    if record['code'] == 'LWOP':
-        #     attendances['number_of_days'] += float_round(record.leave_wop_hours / 8.0, precision_digits=2)
-        #     attendances['number_of_hours'] += float_round(record.leave_wop_hours, precision_digits=2)
+        for record in worked_hours:
+            attendances['number_of_days'] += float_round(record.leave_wop_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.leave_wop_hours, precision_digits=2)
 
-        # worked_hours_ids += worked_hours_ids.new(attendances)
+        worked_hours_ids += worked_hours_ids.new(attendances)
 
-        # # Late Leave With Pay
-        # attendances = {
-        #     'name': _("Late Leave With Pay"),
-        #     'sequence': 1,
-        #     'code': 'LateLWP',
-        #     'number_of_days': 0.0,
-        #     'number_of_hours': 0.0,
-        #     'contract_id': contract.id,
-        # }
+        # Late Leave With Pay
+        attendances = {
+            'name': _("Late Leave With Pay"),
+            'sequence': 1,
+            'code': 'LateLWP',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
 
-        # # for record in worked_hours:
-        # #    if record['code'] == 'LateLWP':
-        # #     attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-        # #     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
+        for record in late_attendance_list:
+            attendances['number_of_days'] += float_round(record.leave_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.leave_hours , precision_digits=2)
 
-        # worked_hours_ids += worked_hours_ids.new(attendances)
+        worked_hours_ids += worked_hours_ids.new(attendances)
 
         # # Late Leave Without Pay
         # attendances = {
@@ -3543,37 +3260,35 @@ class HRPayrollAttendance(models.Model):
 
         # worked_hours_ids += worked_hours_ids.new(attendances)
 
-        # # attendances
-        # attendances = {
-        #     'name': _("Regular Work"),
-        #     'sequence': 1,
-        #     'code': 'RegWrk',
-        #     'number_of_days': 0.0,
-        #     'number_of_hours': 0.0,
-        #     'contract_id': contract.id,
-        # }
+        # Regular Work
+        attendances = {
+            'name': _("Regular Work"),
+            'sequence': 1,
+            'code': 'RegWrk',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
 
-        # worked_hours = self.get_worked_hour_lines(self.employee_id.id, date_from, date_to)
-
-        # # For retrieval purposes (original code)
-        # # for record in worked_hours:
-        # #     attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-        # #     attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
-
+        # For retrieval purposes (original code)
         # for record in worked_hours:
-        #     if record.late_hours > 0.000001:
-        #         late_hours_convert = record.late_hours*60
-        #         domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-        #         object = self.env['tardiness.table'].search(domain, limit=1)
-        #         equivalent_min = float(object.equivalent_min) / 60
+        #     attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+        #     attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
 
-        #         attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
-        #         attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
-        #     else:
-        #         attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-        #         attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+        for record in worked_hours:
+            if record.late_hours > 0.000001:
+                late_hours_convert = record.late_hours*60
+                domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+                object = self.env['tardiness.table'].search(domain, limit=1)
+                equivalent_min = float(object.equivalent_min) / 60
 
-        # worked_hours_ids += worked_hours_ids.new(attendances)
+                attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
+                attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
+            else:
+                attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+                attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+
+        worked_hours_ids += worked_hours_ids.new(attendances)
         
         # Rest Day OT Night Diff
         # rest_day_ot_night_diff = {
@@ -3692,8 +3407,6 @@ class HRPayrollAttendance(models.Model):
             'contract_id': contract.id,
         }
 
-        worked_hours = self.get_worked_overtime_hour_lines(self.employee_id.id, date_from, date_to)
-
         for record in worked_hours:
             rest_day_attendance['number_of_days'] += float_round(record.rest_day_hours / 8.0, precision_digits=2)
             rest_day_attendance['number_of_hours'] += float_round(record.rest_day_hours, precision_digits=2)
@@ -3744,14 +3457,11 @@ class HRPayrollAttendance(models.Model):
             'number_of_hours': 0.0,
             'contract_id': contract.id,
         }
-        late_ot = []
-        for record in worked_hours:
-            date_ot_approved = datetime.strptime(record.overtime_id.date_approved, DEFAULT_SERVER_DATETIME_FORMAT).date()
-            payslip_date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-            if payslip_date_to > date_ot_approved:
-                late_overtime['number_of_days'] += float_round(record.overtime_hours / 8.0, precision_digits=2)
-                late_overtime['number_of_hours'] += float_round(record.overtime_hours, precision_digits=2)
-                late_ot.append(record.id)
+
+        for record in late_attendance_list:
+            late_overtime['number_of_days'] += float_round(record.overtime_hours / 8.0, precision_digits=2)
+            late_overtime['number_of_hours'] += float_round(record.overtime_hours, precision_digits=2)
+
         worked_hours_ids += worked_hours_ids.new(late_overtime)
 
         # Overtime
@@ -3765,9 +3475,8 @@ class HRPayrollAttendance(models.Model):
         }
 
         for record in worked_hours:
-            if record.id not in late_ot:
-                overtime['number_of_days'] += float_round(record.overtime_hours / 8.0, precision_digits=2)
-                overtime['number_of_hours'] += float_round(record.overtime_hours, precision_digits=2)
+            overtime['number_of_days'] += float_round(record.overtime_hours / 8.0, precision_digits=2)
+            overtime['number_of_hours'] += float_round(record.overtime_hours, precision_digits=2)
 
         worked_hours_ids += worked_hours_ids.new(overtime)
 

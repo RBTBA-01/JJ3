@@ -61,10 +61,15 @@ class HrHolidaysExtended(models.Model):
     show_leave_credit = fields.Boolean(compute='get_carry_over_details')
     total_to_deduct = fields.Float()
 
+    leave_approve_date = fields.Datetime("Date Approved")
+
     @api.multi
     def action_approve(self):
         """Check notice period and lockout period before approving."""
         res = super(HrHolidaysExtended, self).action_approve()
+
+        self.leave_approve_date = fields.Datetime.now()
+
         for record in self:
             carry_over_line = self.env['leave.carry.over.line']
             existing_carry_over_line = self.env['leave.carry.over.line'].search(
