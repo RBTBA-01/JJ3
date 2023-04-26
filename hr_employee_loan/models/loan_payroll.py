@@ -1199,7 +1199,6 @@ class EmployeeLoanDetails(models.Model):
             date_to = (date_from + relativedelta(weeks=2, days=+1))
 
             # To correct dates caused by difference of month days
-            # SME Logic
             if date_from.month == 2 and date_to.month != 2:
                 date_from_days = calendar.monthrange(date_from.year, date_from.month)
                 if date_from_days == 28:
@@ -1214,22 +1213,7 @@ class EmployeeLoanDetails(models.Model):
                     date_to_days = calendar.monthrange(date_to.year, date_to.month)[1]
                     if date_to_days == 31 and date_to_days != date_from_days:
                         date_to = date_to + relativedelta(days=-1)
-        
-            # # GAB Logic
-            # date_from_days = calendar.monthrange(date_from.year, date_from.month)[1]
-            # date_to_days = calendar.monthrange(date_to.year, date_to.month)[1]
-            # if date_from.month == date_to.month:
-            #     if date_to_days == 30:
-            #         date_to = date_to + relativedelta(days=-1)
-            #     elif date_to_days == 31:
-            #         date_to = date_to + relativedelta(days=-1)
-            #         if date_to.day == 30:
-            #             date_to += relativedelta(days=+1)
-            # if date_from.month != date_to.month:
-            #     if date_from_days < date_to_days:
-            #         date_to = date_to + relativedelta(days=-1)
-                
-                
+            
             if loan.interest_mode == 'reducing':
                 principal_amt = reducing_val[install_no]['principal_comp']
                 if loan.int_payable:

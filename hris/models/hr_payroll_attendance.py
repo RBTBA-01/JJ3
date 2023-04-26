@@ -1981,7 +1981,6 @@ class HRAttendance(models.Model):
                 rec.is_leave = False
 
 
-    # DANIEL MARKER
     def get_date_intersection(date_ranges):
         # Convert the date strings to datetime objects
         date_ranges = [(datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), 
@@ -3178,22 +3177,21 @@ class HRPayrollAttendance(models.Model):
 
         worked_hours_ids += worked_hours_ids.new(attendances)
 
-        # # Late Official Business
-        # attendances = {
-        #     'name': _("Late Official Business"),
-        #     'sequence': 1,
-        #     'code': 'LOB',
-        #     'number_of_days': 0.0,
-        #     'number_of_hours': 0.0,
-        #     'contract_id': contract.id,
-        # }
+        # Late Official Business
+        attendances = {
+            'name': _("Late Official Business"),
+            'sequence': 1,
+            'code': 'LOB',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
 
-        # # for record in worked_hours:
-        # #    if record['code'] == 'LOB':
-        # #     attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-        # #     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
+        for record in late_attendance_list:
+            attendances['number_of_days'] += float_round(record.ob_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.ob_hours, precision_digits=2)
 
-        # worked_hours_ids += worked_hours_ids.new(attendances)
+        worked_hours_ids += worked_hours_ids.new(attendances)
     
         # Leave With Pay
         attendances = {
@@ -3206,6 +3204,22 @@ class HRPayrollAttendance(models.Model):
         }
 
         for record in worked_hours:
+            attendances['number_of_days'] += float_round(record.leave_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.leave_hours , precision_digits=2)
+
+        worked_hours_ids += worked_hours_ids.new(attendances)
+
+        # Late Leave With Pay
+        attendances = {
+            'name': _("Late Leave With Pay"),
+            'sequence': 1,
+            'code': 'LateLWP',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
+
+        for record in late_attendance_list:
             attendances['number_of_days'] += float_round(record.leave_hours / 8.0, precision_digits=2)
             attendances['number_of_hours'] += float_round(record.leave_hours , precision_digits=2)
 
@@ -3227,38 +3241,21 @@ class HRPayrollAttendance(models.Model):
 
         worked_hours_ids += worked_hours_ids.new(attendances)
 
-        # Late Leave With Pay
+        # Late Leave Without Pay
         attendances = {
-            'name': _("Late Leave With Pay"),
+            'name': _("Late Leave Without Pay"),
             'sequence': 1,
-            'code': 'LateLWP',
+            'code': 'LateLWOP',
             'number_of_days': 0.0,
             'number_of_hours': 0.0,
             'contract_id': contract.id,
         }
 
         for record in late_attendance_list:
-            attendances['number_of_days'] += float_round(record.leave_hours / 8.0, precision_digits=2)
-            attendances['number_of_hours'] += float_round(record.leave_hours , precision_digits=2)
+            attendances['number_of_days'] += float_round(record.leave_wop_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.leave_wop_hours, precision_digits=2)
 
         worked_hours_ids += worked_hours_ids.new(attendances)
-
-        # # Late Leave Without Pay
-        # attendances = {
-        #     'name': _("Late Leave Without Pay"),
-        #     'sequence': 1,
-        #     'code': 'LateLWOP',
-        #     'number_of_days': 0.0,
-        #     'number_of_hours': 0.0,
-        #     'contract_id': contract.id,
-        # }
-
-        # # for record in worked_hours:
-        # #    if record['code'] == 'LateLWOP':
-        # #     attendances['number_of_days'] += float_round(record['number_of_hours'] / 8.0, precision_digits=2)
-        # #     attendances['number_of_hours'] += float_round(record['number_of_hours'], precision_digits=2)
-
-        # worked_hours_ids += worked_hours_ids.new(attendances)
 
         # Regular Work
         attendances = {
@@ -3269,11 +3266,6 @@ class HRPayrollAttendance(models.Model):
             'number_of_hours': 0.0,
             'contract_id': contract.id,
         }
-
-        # For retrieval purposes (original code)
-        # for record in worked_hours:
-        #     attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-        #     attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
 
         for record in worked_hours:
             if record.late_hours > 0.000001:
