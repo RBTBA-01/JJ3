@@ -619,12 +619,25 @@ class HRLeave(models.Model):
         leave_days = []
         current_date = from_dt
         while current_date <= to_dt:
-            leave_days.append(current_date.strftime("%A"))
+            leave_days.append(current_date.strftime("%A").lower())
             current_date += timedelta(days=1)
             
+        work_schedule = self.env['hr.employee.schedule.work_time'].search([('employee_id', '=', self.employee_id.id)], limit=1)
+        employee_work_days = []
+        for work_day in work_schedule.work_time_lines:
+            employee_work_days.append(work_day.days_of_week)
 
-        time_delta = to_dt - from_dt
+        non_work_days = 0
+        for day in leave_days[:]:
+            if day not in employee_work_days:
+                    non_work_days += 1
+                    
+        if to_dt.strftime("%A").lower() not in employee_work_days:
+            non_work_days += 1
+
+        time_delta = (to_dt - from_dt) - timedelta(days=non_work_days-1)
         hours = time_delta.days + float(time_delta.seconds) / 28800
+        
         return round(hours * 2) / 2
 
     @api.constrains('date_from')
