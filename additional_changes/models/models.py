@@ -46,32 +46,9 @@ def intersection_list(list1, list2):
 class LeavesAutomate(models.Model):
     _inherit = 'hr.holidays'
 
-    def validate_leave_dates(self, date_from, date_to):
-        leave_dates_list = []
-        employee_work_days = []
-        
-        current_date = datetime.strptime(date_from, "%Y-%m-%d %H:%M:%S")
-
-        while current_date <= datetime.strptime(date_to, "%Y-%m-%d %H:%M:%S"):
-            leave_dates_list.append(current_date.strftime("%Y-%m-%d %H:%M:%S"))
-            current_date += timedelta(days=1)
-
-        
-        work_schedule = self.env['hr.employee.schedule.work_time'].search([('employee_id', '=', self.employee_id.id)], limit=1)
-        
-        for work_day in work_schedule.work_time_lines:
-            employee_work_days.append(work_day.days_of_week)
-
-        return leave_dates_list
-
-
     @api.multi
     def action_approve(self):
         # raise ValidationError(self.id)      
-
-        # Marker
-        leaves_date = self.validate_leave_dates(self.date_from, self.date_to)
-        raise ValidationError(leaves_date)
 
         if self.date_from and self.date_to:
             y = self.env['hr.attendance'].create({

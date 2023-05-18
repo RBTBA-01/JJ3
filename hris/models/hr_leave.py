@@ -615,6 +615,13 @@ class HRLeave(models.Model):
                 uom_day = self.env.ref('product.product_uom_day')
                 if uom_hour and uom_day:
                     return uom_hour._compute_quantity(hours, uom_day)
+                
+        leave_days = []
+        current_date = from_dt
+        while current_date <= to_dt:
+            leave_days.append(current_date.strftime("%A"))
+            current_date += timedelta(days=1)
+            
 
         time_delta = to_dt - from_dt
         hours = time_delta.days + float(time_delta.seconds) / 28800
