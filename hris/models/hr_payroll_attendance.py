@@ -1807,17 +1807,23 @@ class HRAttendance(models.Model):
                     date_from <= date_in <= date_out <= date_to:
                 worked_leave_hours = 0
 
-            if date_from < lunch_break:
-                leave_hours += (min([lunch_break, date_to]) - max(
-                    [required_in, date_from])).total_seconds() / 3600.0
-            if lunch_break_period < required_out and date_to > lunch_break_period:
-                leave_hours += (min([date_to, required_out]) - max(
-                    [lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
-            if lunch_break <= date_from <= lunch_break_period:
-                leave_hours = (min([date_to, required_out]) - max(
-                    [date_from, lunch_break_period])).total_seconds() / 3600.0
-            if lunch_break <= date_from <= date_to <= lunch_break_period:
-                leave_hours = 0
+            if date_from == date_to or (date_to - timedelta(hours=9)) == date_from:
+                if date_from < lunch_break:
+                    leave_hours += (min([lunch_break, date_to]) - max(
+                        [required_in, date_from])).total_seconds() / 3600.0
+                if lunch_break_period < required_out and date_to > lunch_break_period:
+                    leave_hours += (min([date_to, required_out]) - max(
+                        [lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
+                if lunch_break <= date_from <= lunch_break_period:
+                    leave_hours = (min([date_to, required_out]) - max(
+                        [date_from, lunch_break_period])).total_seconds() / 3600.0
+                if lunch_break <= date_from <= date_to <= lunch_break_period:
+                    leave_hours = 0
+            else:
+                leaves_duration = (date_to - date_from)
+                leave_days = (leaves_duration).days + float(leaves_duration.seconds) / 28800
+                leave_hours = round(leave_days) * 8.0
+
         else:
             worked_leave_hours = (min([required_out, date_out]) - max(
                 [required_in, date_in])).total_seconds() / 3600.0

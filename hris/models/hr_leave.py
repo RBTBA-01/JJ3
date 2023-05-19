@@ -635,7 +635,7 @@ class HRLeave(models.Model):
         if to_dt.strftime("%A").lower() not in employee_work_days:
             non_work_days += 1
 
-        time_delta = (to_dt - from_dt) - timedelta(days=non_work_days-1)
+        time_delta = (to_dt - from_dt) - timedelta(days=non_work_days)
         hours = time_delta.days + float(time_delta.seconds) / 28800
         
         return round(hours * 2) / 2

@@ -28,7 +28,7 @@ class HRSalaryRule(models.Model):
                 loan_amount = amount/2
             elif contract.schedule_pay == 'monthly':
                 loan_amount = amount
-        return loan_amount
+        return loan_amount*2
 
 
 class HRPayslip(models.Model):
