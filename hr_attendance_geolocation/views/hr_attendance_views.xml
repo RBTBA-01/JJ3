@@ -19,14 +19,6 @@
                     </span>
                     <field name="checkin_location_mismatched"/>
                     <field name="checkout_location_mismatched"/>
-                    <label for="check_in_remarks" string="Check-in Remarks"/>
-					<span class="oe_inline">
-						<field name="checkin_remarks"/>
-					</span>
-					<label for="check_out_remarks" string="Check-out Remarks"/>
-					<span class="oe_inline">
-						<field name="checkout_remarks"/>
-					</span>
                 </group>
             </xpath>
         </field>
