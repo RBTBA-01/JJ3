@@ -43,19 +43,12 @@ def intersection_list(list1, list2):
     return list(set(list1) & set(list2))
 
 
-def get_dates_leaves(date_from, date_to):
-    date_list = []
-    for d in rrule(DAILY, dtstart=date_from, until=date_to):
-        date_list.append(d)
-    return date_list
-
-
 class LeavesAutomate(models.Model):
     _inherit = 'hr.holidays'
 
     @api.multi
     def action_approve(self):
-        # raise ValidationError(self.id)
+        # raise ValidationError(self.id)      
 
         if self.date_from and self.date_to:
             y = self.env['hr.attendance'].create({
