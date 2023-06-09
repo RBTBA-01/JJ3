@@ -3,14 +3,8 @@
 # -*- coding: utf-8 -*-
 from odoo import api, models, fields
 from odoo.addons import decimal_precision as dp
-<<<<<<< HEAD
-from odoo.exceptions import ValidationError
-
-import math
-=======
 from odoo.exceptions import ValidationError, UserError
->>>>>>> ea0989ff28d984b3f987c0ea8192691d52dea7c3
-
+import math
 UNIT = dp.get_precision("Location")
 
 
