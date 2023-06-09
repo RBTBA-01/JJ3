@@ -58,14 +58,6 @@ class HrEmployee(models.Model):
         location = self.env.context.get('attendance_location', False)
         remarks = self.env.context.get('remarks', False)
         if location:
-<<<<<<< HEAD
-            if self.attendance_state == 'checked_out':
-                res.write({
-                    'check_out_latitude': location[0],
-                    'check_out_longitude': location[1],
-                    'checkin_location_mismatched': self.calculate_distance(self.check_in_latitude, self.check_in_longitude, self.check_out_latitude, self.check_out_longitude),
-                    'checkout_location_mismatched': self.check_in_latitude != self.check_out_latitude and self.check_in_longitude != self.check_out_longitude,
-=======
             if self.attendance_state == 'checked_in':
                 if self.check_in_latitude == location[0] and self.check_in_longitude == location[1]:
                     location_mismatched = False
@@ -87,7 +79,6 @@ class HrEmployee(models.Model):
                     'check_out_longitude': location[1],
                     'checkout_location_mismatched': location_mismatched,
                     'checkout_remarks': remarks
->>>>>>> ea0989ff28d984b3f987c0ea8192691d52dea7c3
                 })
                 
             elif self.attendance_state == 'checked_in':
