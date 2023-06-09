@@ -1,8 +1,9 @@
 # Copyright 2019 Eficent Business and IT Consulting Services S.L.
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
-
+# -*- coding: utf-8 -*-
 from odoo import api, models, fields
 from odoo.addons import decimal_precision as dp
+from odoo.exceptions import ValidationError, UserError
 
 UNIT = dp.get_precision("Location")
 
@@ -22,6 +23,7 @@ class HrEmployee(models.Model):
     def attendance_action_change(self):
         res = super(HrEmployee, self).attendance_action_change()
         location = self.env.context.get('attendance_location', False)
+        remarks = self.env.context.get('remarks', False)
         if location:
             if self.attendance_state == 'checked_in':
                 if self.check_in_latitude == location[0] and self.check_in_longitude == location[1]:
@@ -31,7 +33,8 @@ class HrEmployee(models.Model):
                 res.write({
                     'check_in_latitude': location[0],
                     'check_in_longitude': location[1],
-                    'checkin_location_mismatched': location_mismatched
+                    'checkin_location_mismatched': location_mismatched,
+                    'checkin_remarks': remarks
                 })
             else:
                 if self.check_out_latitude == location[0] and self.check_out_longitude == location[1]:
@@ -41,7 +44,8 @@ class HrEmployee(models.Model):
                 res.write({
                     'check_out_latitude': location[0],
                     'check_out_longitude': location[1],
-                    'checkout_location_mismatched':location_mismatched
+                    'checkout_location_mismatched': location_mismatched,
+                    'checkout_remarks': remarks
                 })
         return res
 
