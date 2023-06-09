@@ -4,6 +4,30 @@ odoo.define('hr_attendance_geolocation.attendances_geolocation', function (requi
     var MyAttendances = require('hr_attendance.my_attendances');
     var KioskConfirm = require('hr_attendance.kiosk_confirm');
     var Model = require('web.Model');
+    var Dialog = require('web.Dialog');
+    var res_company = new Model('res.company');
+
+    res_company.call('search_read', [], { fields: ['id', 'name'] }).then(function (result) {
+        if (!result || !Array.isArray(result)) {
+            console.error("Invalid server response:", result);
+            return;
+        }
+
+        var companies = result;
+        var items = companies.map(function (company) {
+            return { id: company.id, name: company.name };
+        });
+    
+        items.sort(function (a, b) {
+            return a.id - b.id;
+        });
+    
+        console.log("List of Company");
+        items.forEach(function (item) {
+            console.log("Company ID:", item.id);
+            console.log("Company Name:", item.name);
+        });
+    });    
 
     MyAttendances.include({
         init: function (parent, action) {
@@ -26,13 +50,77 @@ odoo.define('hr_attendance_geolocation.attendances_geolocation', function (requi
             var self = this;
             console.log("2777777777777777")
             var hr_employee = new Model('hr.employee');
-            hr_employee.call('attendance_manual',
-            [[self.employee.id], 'hr_attendance.hr_attendance_action_my_attendances', this.$('.o_hr_attendance_PINbox').val(), [position.coords.latitude, position.coords.longitude]]).then(function(result) {
-                if (result.action) {
-                    self.do_action(result.action);
-                } else if (result.warning) {
-                    self.do_warn(result.warning);
+            
+            // Retrieve the list of companies from the server
+            res_company.call('search_read', [], { fields: ['id', 'name'] }).then(function (result) {
+                if (!result || !Array.isArray(result)) {
+                    console.error("Invalid server response:", result);
+                    return;
                 }
+                var companies = result;
+
+                console.log("List of Company");
+                companies.forEach(function (company) {
+                    console.log("Company ID:", company.id);
+                    console.log("Company Name:", company.name);
+                });
+
+                // Create a dropdown menu with the list of companies
+                var $dropdown = $('<select>');
+
+                companies.forEach(function (company) {
+                    $dropdown.append($('<option>').val(company.id).text(company.name));                    
+                });
+                
+                // Open the select company dialog
+                new Dialog(self, {
+                    title: 'Select Company',
+                    size: 'medium',
+                    $content: $dropdown,
+                    buttons: [{
+                        text: 'Confirm',
+                        classes: 'btn-primary',
+                        click: function () {
+                            var selectedCompanyId = parseInt($dropdown.val()); // Convert to integer
+                            res_company.call('read', [selectedCompanyId, ['name']]).then(function (result) {
+                                var companyName = result[0].name;
+
+                                // Assign value to remarks variable
+                                var remarks = companyName;
+
+                                // Perform attendance action with the selected company
+                                hr_employee.call('attendance_manual', [
+                                    [self.employee.id],
+                                    'hr_attendance.hr_attendance_action_my_attendances',
+                                    self.$('.o_hr_attendance_PINbox').val(),
+                                    [position.coords.latitude, position.coords.longitude],
+                                    {
+                                        'remarks': remarks,
+                                    }]).then(function (result) {
+                                        if (result.action) {
+                                            self.do_action(result.action);
+                                        } else if (result.warning) {
+                                            self.do_warn(result.warning);
+                                        }
+                                        console.log("Selected Company:", remarks);
+                                    });
+                            });
+                            this.close();
+                        }
+                    }, {
+                        text: 'Cancel',
+                        click: function () {
+                            // Perform any required cleanup or behaviors when attendance is canceled
+                            self.$('.o_hr_attendance_PINbox').val('');
+
+                            // Display notification
+                            self.do_notify('Attendance Canceled', 'Your attendance has been canceled.');
+
+                            // Close the dialog
+                            this.close();
+                        }
+                    }]
+                }).open();
             });
             
             

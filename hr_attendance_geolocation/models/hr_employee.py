@@ -1,11 +1,15 @@
 # Copyright 2019 Eficent Business and IT Consulting Services S.L.
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
-
+# -*- coding: utf-8 -*-
 from odoo import api, models, fields
 from odoo.addons import decimal_precision as dp
+<<<<<<< HEAD
 from odoo.exceptions import ValidationError
 
 import math
+=======
+from odoo.exceptions import ValidationError, UserError
+>>>>>>> ea0989ff28d984b3f987c0ea8192691d52dea7c3
 
 UNIT = dp.get_precision("Location")
 
@@ -52,13 +56,38 @@ class HrEmployee(models.Model):
     def attendance_action_change(self):
         res = super(HrEmployee, self).attendance_action_change()
         location = self.env.context.get('attendance_location', False)
+        remarks = self.env.context.get('remarks', False)
         if location:
+<<<<<<< HEAD
             if self.attendance_state == 'checked_out':
                 res.write({
                     'check_out_latitude': location[0],
                     'check_out_longitude': location[1],
                     'checkin_location_mismatched': self.calculate_distance(self.check_in_latitude, self.check_in_longitude, self.check_out_latitude, self.check_out_longitude),
                     'checkout_location_mismatched': self.check_in_latitude != self.check_out_latitude and self.check_in_longitude != self.check_out_longitude,
+=======
+            if self.attendance_state == 'checked_in':
+                if self.check_in_latitude == location[0] and self.check_in_longitude == location[1]:
+                    location_mismatched = False
+                else:
+                    location_mismatched = True
+                res.write({
+                    'check_in_latitude': location[0],
+                    'check_in_longitude': location[1],
+                    'checkin_location_mismatched': location_mismatched,
+                    'checkin_remarks': remarks
+                })
+            else:
+                if self.check_out_latitude == location[0] and self.check_out_longitude == location[1]:
+                    location_mismatched = False
+                else:
+                    location_mismatched = True
+                res.write({
+                    'check_out_latitude': location[0],
+                    'check_out_longitude': location[1],
+                    'checkout_location_mismatched': location_mismatched,
+                    'checkout_remarks': remarks
+>>>>>>> ea0989ff28d984b3f987c0ea8192691d52dea7c3
                 })
                 
             elif self.attendance_state == 'checked_in':
