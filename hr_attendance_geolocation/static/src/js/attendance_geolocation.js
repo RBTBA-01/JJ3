@@ -7,27 +7,28 @@ odoo.define('hr_attendance_geolocation.attendances_geolocation', function (requi
     var Dialog = require('web.Dialog');
     var res_company = new Model('res.company');
 
-    res_company.call('search_read', [], { fields: ['id', 'name'] }).then(function (result) {
-        if (!result || !Array.isArray(result)) {
-            console.error("Invalid server response:", result);
-            return;
-        }
+    //**JUST UNCOMMNENT THIS SNIPPET TO CHECK THE LOGS**//
+    // res_company.call('search_read', [], { fields: ['id', 'name'] }).then(function (result) {
+    //     if (!result || !Array.isArray(result)) {
+    //         console.error("Invalid server response:", result);
+    //         return;
+    //     }
 
-        var companies = result;
-        var items = companies.map(function (company) {
-            return { id: company.id, name: company.name };
-        });
+    //     var companies = result;
+    //     var items = companies.map(function (company) {
+    //         return { id: company.id, name: company.name };
+    //     });
     
-        items.sort(function (a, b) {
-            return a.id - b.id;
-        });
+    //     items.sort(function (a, b) {
+    //         return a.id - b.id;
+    //     });
     
-        console.log("List of Company");
-        items.forEach(function (item) {
-            console.log("Company ID:", item.id);
-            console.log("Company Name:", item.name);
-        });
-    });    
+    //     console.log("List of Company");
+    //     items.forEach(function (item) {
+    //         console.log("Company ID:", item.id);
+    //         console.log("Company Name:", item.name);
+    //     });
+    // });    
 
     MyAttendances.include({
         init: function (parent, action) {
