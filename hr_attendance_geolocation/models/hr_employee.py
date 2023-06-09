@@ -73,13 +73,12 @@ class HrEmployee(models.Model):
                     'check_out_longitude': location[1],
                     'checkout_location_mismatched': location_mismatched,
                     'checkout_remarks': remarks
-                })
-                
-            elif self.attendance_state == 'checked_in':
-                res.write({
-                    'check_in_latitude': location[0],
-                    'check_in_longitude': location[1],
-                })
+                })               
+            # else:
+            #     res.write({
+            #         'check_in_latitude': location[0],
+            #         'check_in_longitude': location[1],
+            #     })
 
         return res
     
