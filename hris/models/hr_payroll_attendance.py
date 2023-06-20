@@ -3373,19 +3373,19 @@ class HRPayrollAttendance(models.Model):
         }
         
         # for retrieval purposes (original code)
-        # for record in worked_hours:
-        #     late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
-        #     late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
+        for record in worked_hours:
+		late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
+		late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
 
         # New Logic for TD
-        for record in worked_hours:
-            late_hours_convert = record.late_hours*60
-            domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-            object = self.env['tardiness.table'].search(domain, limit=1)
-            equivalent_min = float(object.equivalent_min) / 60
+        #for record in worked_hours:
+        #    late_hours_convert = record.late_hours*60
+        #    domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+        #    object = self.env['tardiness.table'].search(domain, limit=1)
+        #    equivalent_min = float(object.equivalent_min) / 60
 
-            late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
-            late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
+         #   late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
+          #  late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
         
         worked_hours_ids += worked_hours_ids.new(late)
 
