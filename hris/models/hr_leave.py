@@ -615,9 +615,29 @@ class HRLeave(models.Model):
                 uom_day = self.env.ref('product.product_uom_day')
                 if uom_hour and uom_day:
                     return uom_hour._compute_quantity(hours, uom_day)
+                
+        leave_days = []
+        current_date = from_dt
+        while current_date <= to_dt:
+            leave_days.append(current_date.strftime("%A").lower())
+            current_date += timedelta(days=1)
+            
+        work_schedule = self.env['hr.employee.schedule.work_time'].search([('employee_id', '=', self.employee_id.id)], limit=1)
+        employee_work_days = []
+        for work_day in work_schedule.work_time_lines:
+            employee_work_days.append(work_day.days_of_week)
 
-        time_delta = to_dt - from_dt
+        non_work_days = 0
+        for day in leave_days[:]:
+            if day not in employee_work_days:
+                    non_work_days += 1
+                    
+        if to_dt.strftime("%A").lower() not in employee_work_days:
+            non_work_days += 1
+
+        time_delta = (to_dt - from_dt) - timedelta(days=non_work_days)
         hours = time_delta.days + float(time_delta.seconds) / 28800
+        
         return round(hours * 2) / 2
 
     @api.constrains('date_from')
@@ -930,7 +950,7 @@ class HRLeaveStatus(models.Model):
     notice = fields.Boolean('Notice', help="Enables leaves with days of notice before filing")
     notice_period = fields.Float('Notice Period', help="Notice period(e.g. 14 days = 2 weeks )")
     is_ob = fields.Boolean('Official Business')
-    is_cdo = fields.Boolean('Cumulative Day Off')
+    is_cdo = fields.Boolean('Entitled To')
     job_ids = fields.Many2many('hr.job', 'job_pos_leave_type_rel', 'holiday_id', 'job_id', 'Applicable For')
     expiration_date = fields.Date('Expiration Date')
     code = fields.Char('Code', size=8, help="Leave code use for conversion in payroll.")

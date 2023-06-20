@@ -41,6 +41,7 @@ class PersonalActionNotice(models.TransientModel):
     rev_by = fields.Many2one('hr.employee', string="Reviewed by:", required=True)
     app_by = fields.Many2one('hr.employee', string="Approved by:", required=True)
     
+
     @api.onchange('emp_no')
     def onchange_emp_details(self):
        
@@ -69,6 +70,24 @@ class PersonalActionNotice(models.TransientModel):
         res = self.read()
         res = res and res[0] or {}
         data.update({'form': res})
+
+        hr_contract = self.env['hr.contract'].search([('employee_id', '=', self.employee_id.id)], limit=1)
+        if hr_contract:
+            hr_contract.write({
+                'department_id': self.to_dep.id,
+                'job_id': self.to_pos.id,
+                'type_id': self.to_emp_typ.id,
+                'old_wage': self.wage,
+                'wage': self.to_wage,
+                'new_salary_date': self.efectivity_date,
+            })
         
+        hr_employee = self.env['hr.employee'].search([('employee_num', '=', self.emp_no)], limit=1)
+        if hr_employee:
+            hr_employee.write({
+                'department_id': self.to_dep.id,
+                'job_id': self.to_pos.id,
+            })
+
         return self.env['report'].get_action(self,'hris.report_personal_action_notice', data=data)
     

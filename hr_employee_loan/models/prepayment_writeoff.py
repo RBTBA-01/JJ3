@@ -104,8 +104,8 @@ class PrepaymentWriteoff(models.Model):
             }
             move_id = move_obj.create(move_vals)
             journal_id = line.write_journal_id.id
-            address_id = line.loan_id.employee_id.address_home_id or False
-            partner_id = address_id and address_id and address_id.id or False
+            # address_id = line.loan_id.employee_id.address_home_id or False
+            # partner_id = address_id and address_id and address_id.id or False
 #            partner_id = line.prepayment_id.partner_id.id
             debit_line = (0, 0, {
                 'name': prepayment_name,
@@ -116,7 +116,7 @@ class PrepaymentWriteoff(models.Model):
                 'credit': 0.0,
 #                 'period_id': period_ids and period_ids.id or False,
                 'journal_id': journal_id,
-                'partner_id': partner_id,
+                # 'partner_id': partner_id,
                 'currency_id': company_currency.id <> current_currency.id and current_currency.id or False,
                 'amount_currency': company_currency.id <> current_currency.id and -sign * line.value_residual or 0.0,
                 'date': line.date,

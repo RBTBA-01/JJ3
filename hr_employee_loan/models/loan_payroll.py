@@ -369,11 +369,11 @@ class LoanInstallmentDetail(models.Model):
                         raise Warning(_('Book interest entry is already generated !'))
     #             period_id = period_pool.find(installment.date_from)[0]
                 timenow = time.strftime('%Y-%m-%d')
-                address_id = installment.loan_id.employee_id.address_home_id or False
-                partner_id = address_id and address_id.id or False
+                # address_id = installment.loan_id.employee_id.address_home_id or False
+                # partner_id = address_id and address_id.id or False
 
-                if not partner_id:
-                    raise Warning(_('Please configure Home Address for Employee !'))
+                # if not partner_id:
+                #     raise Warning(_('Please configure Home Address for Employee !'))
 
                 move = {
                     'narration': installment.loan_id.name,
@@ -426,11 +426,11 @@ class LoanInstallmentDetail(models.Model):
             #                    raise Warning(_('Book interest entry is already generated !'))
             #             period_id = period_pool.find(installment.date_from)[0]
             timenow = time.strftime('%Y-%m-%d')
-            address_id = installment.loan_id.emp_id.address_home_id or False
-            partner_id = address_id and address_id.id or False
+            # address_id = installment.loan_id.emp_id.address_home_id or False
+            # partner_id = address_id and address_id.id or False
 
-            if not partner_id:
-                raise Warning(_('Please configure Home Address for Employee !'))
+            # if not partner_id:
+            #     raise Warning(_('Please configure Home Address for Employee !'))
 
             move = {
                 'narration': installment.loan_id.name,
@@ -484,11 +484,11 @@ class LoanInstallmentDetail(models.Model):
             if installment.loan_id.loan_type.payment_method == 'cash':
                 #                 period_id = period_pool.find(installment.date_from)[0]
                 timenow = time.strftime('%Y-%m-%d')
-                address_id = installment.loan_id.emp_id.address_home_id or False
-                partner_id = address_id and address_id.id or False
+                # address_id = installment.loan_id.emp_id.address_home_id or False
+                # partner_id = address_id and address_id.id or False
 
-                if not partner_id:
-                    raise Warning(_('Please configure Home Address for Employee !'))
+                # if not partner_id:
+                #     raise Warning(_('Please configure Home Address for Employee !'))
 
                 move = {
                     'narration': installment.loan_id.name,
@@ -543,11 +543,11 @@ class LoanInstallmentDetail(models.Model):
             if installment.loan_id.loan_type.payment_method == 'cash':
                 #                 period_id = period_pool.find(installment.date_from)[0]
                 timenow = time.strftime('%Y-%m-%d')
-                address_id = installment.loan_id.employee_id.address_home_id or False
-                partner_id = address_id and address_id.id or False
+                # address_id = installment.loan_id.employee_id.address_home_id or False
+                # partner_id = address_id and address_id.id or False
 
-                if not partner_id:
-                    raise Warning(_('Please configure Home Address for Employee !'))
+                # if not partner_id:
+                #     raise Warning(_('Please configure Home Address for Employee !'))
 
                 move = {
                     'narration': installment.loan_id.name,
@@ -983,21 +983,24 @@ class EmployeeLoanDetails(models.Model):
         line_ids = self.env['hr.payslip.line'].search(domain)
         department_id = employee_obj.department_id.id or False
 #         print 'department_id==========',department_id
-        address_id = employee_obj.address_home_id or False
 
-        if not address_id:
-            raise Warning(_('There is no home/work address defined for employee : %s ') % (_(employee_obj.name)))
-        partner_id = address_id and address_id.id or False
-        if not partner_id:
-            raise Warning(_('There is no partner defined for employee : %s ') % (_(employee_obj.name)))
+        # address_id = employee_obj.address_home_id or False
+        # if not address_id:
+        #     raise Warning(_('There is no home/work address defined for employee : %s ') % (_(employee_obj.name)))
+        # partner_id = address_id and address_id.id or False
+        # if not partner_id:
+        #     raise Warning(_('There is no partner defined for employee : %s ') % (_(employee_obj.name)))
         gross_amount = 0.0
         if line_ids:
             #             line = self.env['hr.payslip.line'].browse(line_ids)[0]
             line = line_ids[0]
             gross_amount = line.amount
 
-        return {'value': {'department_id': department_id, 'loan_policy_ids': list(set(policies_on_categ + policies_on_empl)),
-                          'employee_gross': gross_amount, 'employee_loan_account': address_id.property_account_receivable_id.id or False}}
+        return {'value': {'department_id': department_id,
+                          'loan_policy_ids': list(set(policies_on_categ + policies_on_empl)),
+                          'employee_gross': gross_amount,
+                        #   'employee_loan_account': address_id.property_account_receivable_id.id or False,
+                          }}
 
     # probuse override to fix issue of  when we apply for a loan first loan policy is selected and when we save loan request the loan policy get removed/disappeared and we have to select loan policy again
     @api.model
@@ -1243,11 +1246,11 @@ class EmployeeLoanDetails(models.Model):
             vals = {}
 #             period_id = period_pool.find(loan.date_applied)[0]
             timenow = time.strftime('%Y-%m-%d')
-            address_id = loan.employee_id.address_home_id or False
-            partner_id = address_id and address_id and address_id.id or False
+            # address_id = loan.employee_id.address_home_id or False
+            # partner_id = address_id and address_id and address_id.id or False
 
-            if not partner_id:
-                raise Warning(_('Please configure Home Address On Employee.'))
+            # if not partner_id:
+            #     raise Warning(_('Please configure Home Address On Employee.'))
 
             move = {
                 'narration': loan.name,
