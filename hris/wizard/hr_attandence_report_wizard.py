@@ -113,6 +113,10 @@ class EntrivisDailySaleWizard(models.TransientModel):
         col += 1
         worksheet.write(row, col, 'Night Differential Overtime', header_style)
         col += 1
+        worksheet.write(row, col, 'Check-in Remarks', header_style)
+        col += 1
+        worksheet.write(row, col, 'Check-out Remarks', header_style)
+        col += 1
         worksheet.write(row, col, 'Remarks', header_style)
         row = +1
         col = 0
@@ -173,6 +177,10 @@ class EntrivisDailySaleWizard(models.TransientModel):
             worksheet.write(row, col ,res.reg_hday_ot_hours, body_style)
             col += 1
             worksheet.write(row, col ,res.night_diff_ot_hours , body_style)
+            col += 1
+            worksheet.write(row, col ,res.checkin_remarks , body_style)
+            col += 1
+            worksheet.write(row, col ,res.checkout_remarks , body_style)
             col += 1
             worksheet.write(row, col ,res.remarks, body_style)
             row += 1 
