@@ -123,6 +123,7 @@ class AdditionalTables(models.Model):
 
 class SalaryRulesAdditional(models.Model):
     _inherit = 'hr.contract'
+   
    def get_prev_phic(self,contract,payslip):                                                                                                      
 	domain = [('date_release', '<', payslip.date_release), ('contract_id', '=', contract.id), ('contract_id.employee_id', '=', contract.employee_id.id)]
 	prev_payslip = self.env['hr.payslip'].search(domain, limit=1, order="date_release DESC")
