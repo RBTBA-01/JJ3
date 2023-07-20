@@ -4330,7 +4330,7 @@ class PayrollPeriodLine(models.Model):
                 if period.end_date < period.start_date:
                     raise ValidationError(_('"End date" time cannot be earlier than "Start date" date.'))
 
-    cut_off = fields.Selection([(1, 1), (2, 2)], string="Cut Off", required=True)
+    cut_off = fields.Selection([(1, 1), (2, 2),(3,3),(4,4)], string="Cut Off", required=True)
     start_date = fields.Date('Start Date', required=True)
     end_date = fields.Date('End Date', required=True)
     date_release = fields.Date('Release Date', required=True)
