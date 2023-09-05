@@ -43,19 +43,12 @@ def intersection_list(list1, list2):
     return list(set(list1) & set(list2))
 
 
-def get_dates_leaves(date_from, date_to):
-    date_list = []
-    for d in rrule(DAILY, dtstart=date_from, until=date_to):
-        date_list.append(d)
-    return date_list
-
-
 class LeavesAutomate(models.Model):
     _inherit = 'hr.holidays'
 
     @api.multi
     def action_approve(self):
-        # raise ValidationError(self.id)
+        # raise ValidationError(self.id)      
 
         if self.date_from and self.date_to:
             y = self.env['hr.attendance'].create({
@@ -130,7 +123,25 @@ class AdditionalTables(models.Model):
 
 class SalaryRulesAdditional(models.Model):
     _inherit = 'hr.contract'
+   
+    def get_prev_phic(self,contract,payslip):
+        domain = [('date_release', '<', payslip.date_release), ('contract_id', '=', contract.id), ('contract_id.employee_id', '=', contract.employee_id.id)]
+        prev_payslip = self.env['hr.payslip'].search(domain, limit=1, order="date_release DESC")
 
+        total = 0
+        for pays in prev_payslip:
+            total += pays.line_ids.filtered(lambda x: x.code == 'PHIC-FC').amount
+
+        return total
+    def sss_logic(self, contract, payslip):
+        domain = [('date_release', '<', payslip.date_release), ('contract_id', '=', contract.id), ('contract_id.employee_id', '=', contract.employee_id.id)]
+        prev_payslip = self.env['hr.payslip'].search(domain, limit=3, order="date_release DESC")
+
+        total = 0
+        for pays in prev_payslip:
+            total += pays.line_ids.filtered(lambda x: x.code == 'SSS-FCO').amount
+        
+        return total
     def get_prev_regwrk(self, contract, payslip):
         domain = [('date_release', '<', payslip.date_release), ('contract_id', '=', contract.id), ('contract_id.employee_id', '=', contract.employee_id.id)]
         prev_payslip = self.env['hr.payslip'].search(domain, limit=1, order="date_release DESC")

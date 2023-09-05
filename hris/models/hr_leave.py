@@ -930,7 +930,7 @@ class HRLeaveStatus(models.Model):
     notice = fields.Boolean('Notice', help="Enables leaves with days of notice before filing")
     notice_period = fields.Float('Notice Period', help="Notice period(e.g. 14 days = 2 weeks )")
     is_ob = fields.Boolean('Official Business')
-    is_cdo = fields.Boolean('Cumulative Day Off')
+    is_cdo = fields.Boolean('Entitled To')
     job_ids = fields.Many2many('hr.job', 'job_pos_leave_type_rel', 'holiday_id', 'job_id', 'Applicable For')
     expiration_date = fields.Date('Expiration Date')
     code = fields.Char('Code', size=8, help="Leave code use for conversion in payroll.")
