@@ -199,73 +199,81 @@ class EntrivisDailySaleWizard(models.TransientModel):
                 worksheet.write(row, col, 0, body_style)
                 col += 1
             if res.checkout_remarks == 'HGRCG Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                    # for company_name, checkout_count in company_count.items():
+                    #     if res.employee_id.name == employee_name:
+                    #         worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
                 col += 1   
             if res.checkout_remarks == 'Nikkei Global City Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                    # for company_name, checkout_count in company_count.items():
+                    #     if res.employee_id.name == employee_name:
+                    #         worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
                 col += 1
             if res.checkout_remarks == 'Nikkei Newport Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                    # for company_name, checkout_count in company_count.items():
+                    #     if res.employee_id.name == employee_name:
+                    #         worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
                 col += 1
             if res.checkout_remarks == 'Nikkei Podium Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                    # for company_name, checkout_count in company_count.items():
+                    #     if res.employee_id.name == employee_name:
+                    #         worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
                 col += 1
             if res.checkout_remarks == 'Nikkei Rada Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                #     for company_name, checkout_count in company_count.items():
+                #         if res.employee_id.name == employee_name:
+                #             worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
                 col += 1
             if res.checkout_remarks == 'Nikkei Robata BGC Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                #     for company_name, checkout_count in company_count.items():
+                #         if res.employee_id.name == employee_name:
+                #             worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
                 col += 1
             if res.checkout_remarks == 'Nikkei Rockwell Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                #     for company_name, checkout_count in company_count.items():
+                #         if res.employee_id.name == employee_name:
+                #             worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
                 col += 1
             if res.checkout_remarks == 'Terraza Shang BGC Inc.' and res.check_in >= self.start_date and res.check_in <= self.end_date:
-                for employee_name, company_count in checkout_count_by_employee_and_company.items():
-                    for company_name, checkout_count in company_count.items():
-                        if res.employee_id.name == employee_name:
-                            worksheet.write(row, col, checkout_count, body_style)
+                # for employee_name, company_count in checkout_count_by_employee_and_company.items():
+                #     for company_name, checkout_count in company_count.items():
+                #         if res.employee_id.name == employee_name:
+                #             worksheet.write(row, col, checkout_count, body_style)
+                worksheet.write(row, col, 1, body_style)
                 col += 1
             else:
                 worksheet.write(row, col, 0, body_style)
