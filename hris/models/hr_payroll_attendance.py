@@ -2434,7 +2434,7 @@ class HRAttendanceOvertime(models.Model):
 
     def action_make_leave(self):
         """Create leaves."""
-
+        self.remove_from_attendance()
         for record in self:
 
             if self.env.uid == record.employee_id.user_id.id:
@@ -2445,9 +2445,9 @@ class HRAttendanceOvertime(models.Model):
                     raise ValidationError(_('Please specify the leave type to be created'))
                 if record.holiday_status_id.is_cdo and record.employee_id and record.employee_id.contract_id \
                         and record.employee_id.contract_id.job_id and record.employee_id.job_id not in record.holiday_status_id.job_ids:
-                    continue
-#                    raise ValidationError(_('This employee is not entitled for cumulative day off!.'))
-                hours_rendered = 0
+                    # continue
+                   raise ValidationError(_('This employee is not entitled for cumulative day off!.'))
+                hours_rendered = self.hours_requested
                 if record.holiday_status_id.is_cdo:
                     hours_rendered = self.get_overtime_hours(record)
 
@@ -2499,7 +2499,8 @@ class HRAttendanceOvertime(models.Model):
             if payslip:
 
                 record.write({'overtime_adjustment': True})
-
+    
+    """"APPROVED OVERTIME"""
     @api.multi
     def action_approved(self):
         if not (self.env.user.has_group('hris.group_approver') or self.env.user.has_group('hris.group_hr_user') or self.env.user.has_group('hris.payroll_admin')):
@@ -3380,8 +3381,8 @@ class HRPayrollAttendance(models.Model):
         
         # for retrieval purposes (original code)
         for record in worked_hours:
-		late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
-		late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
+            late['number_of_days'] += float_round(record.late_hours / 8.0, precision_digits=2)
+            late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
 
         # New Logic for TD
         #for record in worked_hours:

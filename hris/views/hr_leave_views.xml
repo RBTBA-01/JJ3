@@ -106,7 +106,7 @@
 	   	    <field name="view_mode">tree,form</field>
 	   	    <field name="view_type">form</field>
 	   	    <field name="help" type="html">
-	   	        <p class="oe_nocontent_create_view">
+	   	        <p class="oe_view_nocontent_create oe_view_nocontent_alias">
 	   	        	Click here to add new leave type.
 	   	        </p>
 	   	    </field>
@@ -185,49 +185,50 @@
 		     	</xpath>
 		     </field>
 		 </record>
-		 <record id="hr_holidays_leave_conversion" model="ir.ui.view">
-		     <field name="name">Holidays Conversion</field>
-		     <field name="model">hr.holidays</field>
-		     <field name="inherit_id" ref="hr_holidays.edit_holiday_new" />
-		     <field name="arch" type="xml">
-		        <!--<xpath expr="//field[@name='date_from']" position="replace" >
-		     		<field name="date_from" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)], 'invisible':[('type', '=', 'remove'), ('process_type', '!=', False)]}" class="oe_inline"/>
-		     	</xpath>
-		     	<xpath expr="//field[@name='date_to']" position="replace" >
-		     		<field name="date_to" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)], 'invisible':[('type', '=', 'remove'), ('process_type', '!=', False)]}" class="oe_inline"/>
-		     	</xpath>-->
-		     	<xpath expr="//group[1]/group[1]" position="inside" >
-	     	       <field name="process_type" attrs="{'invisible': [('type', '=', 'add')], 
-	     	           								  'readonly': [('state', 'not in', ('draft', 'confirm'))]}" />
-	     	       <!--<field name="date_processed" attrs="{'invisible': [('type', '=', 'add')], 
-	     	           									'readonly': [('state', 'not in', ('draft', 'confirm'))], 
-	     	           									'required':[('type', '=', 'remove'), 
-	     	           									('process_type', '!=', False)]}"/>-->
-		     	</xpath>
-				 <xpath expr="//field[@name='number_of_days_temp']" position="attributes">
-		     		<attribute name="attrs">{'invisible':[('type', '=', 'remove'), ('can_modify', '=', False)]}</attribute>
-		     	</xpath>
-		     	<xpath expr="//field[@name='number_of_days_temp']" position="after">
-		     		<field name="actual_number_of_days" attrs="{'invisible':[('type', '=', 'add')]}" />
-		     		<field name="can_modify" invisible="1" />
-		     		
-		     	</xpath>
-		     	<xpath expr="//field[@name='department_id']" position="after" >
-		     	    <field name="date_approved" groups="hris.group_approver" attrs="{'readonly': [('state', 'not in', ('draft', 'confirm'))]}" />
-		     	</xpath>
-		     	
-		     	<xpath expr="//group[1]/group[1]/div[1]/div[1]" position="replace" >
-		     	  <div attrs="{'invisible': ['|',('process_type', '!=', False),('type', '=', 'add')]}">
-                      <field name="date_from" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)]}" class="oe_inline"/>
-					  <label string="-" class="oe_inline"/>
-                      <field name="date_to" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)]}" class="oe_inline"/>
-		     	  </div>
-		     	</xpath>
-		     	<xpath expr="//field[@name='name']" position="attributes">
+		<record id="hr_holidays_leave_conversion" model="ir.ui.view">
+			<field name="name">Holidays Conversion</field>
+			<field name="model">hr.holidays</field>
+			<field name="inherit_id" ref="hr_holidays.edit_holiday_new" />
+			<field name="arch" type="xml">
+				<!-- <xpath expr="//field[@name='date_from']" position="replace" >
+					<field name="date_from" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)], 'invisible':[('type', '=', 'remove'), ('process_type', '!=', False)]}" class="oe_inline"/>
+				</xpath>
+				<xpath expr="//field[@name='date_to']" position="replace" >
+					<field name="date_to" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)], 'invisible':[('type', '=', 'remove'), ('process_type', '!=', False)]}" class="oe_inline"/>
+				</xpath> -->
+				<xpath expr="//group[1]/group[1]" position="inside" >
+					<field name="process_type" attrs="{'invisible': [('type', '=', 'add')], 
+														'readonly': [('state', 'not in', ('draft', 'confirm'))]}" />
+					<!--<field name="date_processed" attrs="{'invisible': [('type', '=', 'add')], 
+														'readonly': [('state', 'not in', ('draft', 'confirm'))], 
+																'required':[('type', '=', 'remove'), 
+														('process_type', '!=', False)]}"/>-->
+				</xpath>
+					<!-- <xpath expr="//field[@name='number_of_days_temp']" position="attributes"> -->
+					<!-- <attribute name="attrs">{'invisible':[('type', '=', 'remove'), ('can_modify', '=', False)]}</attribute> -->
+				<!-- </xpath> -->
+				<xpath expr="//field[@name='number_of_days_temp']" position="after">
+					<!-- <field name="actual_number_of_days" attrs="{'invisible':[('type', '=', 'add')]}" /> -->
+					<field name="actual_number_of_days" invisible="1" />
+					<!-- <field name="can_modify" invisible="1" /> -->
+					
+				</xpath>
+				<xpath expr="//field[@name='department_id']" position="after" >
+					<field name="date_approved" groups="hris.group_approver" attrs="{'readonly': [('state', 'not in', ('draft', 'confirm'))]}" />
+				</xpath>
+				
+				<xpath expr="//group[1]/group[1]/div[1]/div[1]" position="replace" >
+					<div attrs="{'invisible': ['|',('process_type', '!=', False),('type', '=', 'add')]}">
+						<field name="date_from" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)]}" class="oe_inline"/>
+						<label string="-" class="oe_inline"/>
+						<field name="date_to" attrs="{'required':[('type', '=', 'remove'), ('process_type', '=', False)]}" class="oe_inline"/>
+					</div>
+				</xpath>
+				<xpath expr="//field[@name='name']" position="attributes">
 					<attribute name="string">Reason</attribute>
-		     	</xpath>
-		     </field>
-		 </record>
+				</xpath>
+			</field>
+		</record>
 
 
 		<act_window
