@@ -46,21 +46,22 @@ def intersection_list(list1, list2):
 class LeavesAutomate(models.Model):
     _inherit = 'hr.holidays'
 
-    @api.multi
-    def action_approve(self):
-        # raise ValidationError(self.id)      
+    # @api.multi
+    # def action_approve(self):
+    #     # raise ValidationError(self.id)      
 
-        if self.date_from and self.date_to:
-            y = self.env['hr.attendance'].create({
-                'employee_id': self.employee_id.id,
-                'check_in': self.date_from,
-                'check_out': self.date_to,
-            })
+    #     if self.date_from and self.date_to:
+    #         y = self.env['hr.attendance'].create({
+    #             'employee_id': self.employee_id.id,
+    #             'check_in': self.date_from,
+    #             'check_out': self.date_to,
+    #         })
 
-            y.write({'leave_ids': [(4, self.id)]})
+    #         y.write({'leave_ids': [(4, self.id)],
+    #                  'date_approved': fields.Datetime.now()})
 
-        x = super(LeavesAutomate, self).action_approve()
-        return x
+    #     x = super(LeavesAutomate, self).action_approve()
+    #     return x
 
 
 # class LeavesAutomate(models.Model):
