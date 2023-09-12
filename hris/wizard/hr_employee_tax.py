@@ -54,7 +54,7 @@ class HRTax(models.TransientModel):
         
         for employee in self.employee_ids:
             payslip = self.env['hr.payslip'].search([('employee_id', '=', employee.id), ('credit_note','=',False), ('date_release', '>=', self.date_from),
-             ('date_release', '<=', self.date_to), ('state', '=', 'done')])
+             ('date_release', '<=', self.date_to), ('state', 'in', ['draft', 'done'])])
             
             tax_line = self.env['hr.payslip.line']
             for record in payslip:
