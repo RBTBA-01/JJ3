@@ -1,435 +1,396 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
+	<data>
 		<record id="processed_leaves" model="ir.ui.view">
 			<field name="name">Processed Leaves</field>
 			<field name="model">hr.payslip</field>
-			<field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>        
+			<field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
 			<field name='arch' type='xml'>
 				<xpath expr="//page[1]" position="after">
 
-				<page string="Late Processing">
+					<!-- <page string="Late Processing">
 					<field name="late_attendances"/>
-				</page>
-				
-				</xpath>
-			</field>  
-      	</record>
+				</page> -->
 
-    	<record id="hr_payroll_attendance_view_form" model="ir.ui.view">
-    	    <field name="name">HR Payroll</field>
-    	    <field name="model">hr.payslip</field>
-    	    <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form" />
-    	    <field name="arch" type="xml">
-    	        <xpath expr="//sheet/div[@name='button_box']" position="inside">
-    	        	<button name="btn_compute_attendance" 
-    	        	    	type="object" 
-    	        	    	icon="fa-refresh" 
-    	        	    	string="RE-PROCESS"
-    	        	    	class="oe_stat_button"
-    	        	    	attrs="{'invisible': [('state', '!=', 'draft')]}" />
-    	        </xpath>
-    	    </field>
-    	</record>
-    	<!-- End of HR Attendance -->
-    	<record id="hr_attendance_change_view_form" model="ir.ui.view">
-    	    <field name="name">HR Attendance</field>
-    	    <field name="model">hr.attendance</field>
-    	    <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form" />
-    	    <field name="arch" type="xml">
-    	        <xpath expr="//group[1]" position="replace">
-    	        	<group>
-	   	                <group string="Attendances">
-                            <field name="employee_id"/>
+				</xpath>
+			</field>
+		</record>
+
+		<record id="hr_payroll_attendance_view_form" model="ir.ui.view">
+			<field name="name">HR Payroll</field>
+			<field name="model">hr.payslip</field>
+			<field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+			<field name="arch" type="xml">
+				<xpath expr="//sheet/div[@name='button_box']" position="inside">
+					<button name="btn_compute_attendance" type="object" icon="fa-refresh" string="RE-PROCESS" class="oe_stat_button"
+						attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+				</xpath>
+			</field>
+		</record>
+		<!-- End of HR Attendance -->
+		<record id="hr_attendance_change_view_form" model="ir.ui.view">
+			<field name="name">HR Attendance</field>
+			<field name="model">hr.attendance</field>
+			<field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
+			<field name="arch" type="xml">
+				<xpath expr="//group[1]" position="replace">
+					<group>
+						<group string="Attendances">
+							<field name="employee_id"/>
 							<field name="is_hide_check_time" invisible="1"/>
-                            <field name="check_in" attrs="{'invisible':[('is_hide_check_time', '=', True)]}" string="Actual Time In"/>
-                            <field name="check_out" attrs="{'invisible':[('is_hide_check_time', '=', True)]}" string="Actual Time Out"/>
-                            <!-- <field name="check_in" string="Actual Time In" attrs="{'invisible':[('absent_hours','>',0)]}"/>
+							<field name="check_in" attrs="{'invisible':[('is_hide_check_time', '=', True)]}" string="Actual Time In"/>
+							<field name="check_out" attrs="{'invisible':[('is_hide_check_time', '=', True)]}" string="Actual Time Out"/>
+							<!-- <field name="check_in" string="Actual Time In" attrs="{'invisible':[('absent_hours','>',0)]}"/>
                             <field name="check_out" string="Actual Time Out" attrs="{'invisible':[('absent_hours','>',0)]}"/> -->
-                            <field name="temp_in" invisible="1" />
-                            <field name="temp_out" invisible="1" />
-                            
-                        </group>
-	   	                <group string="References">
-    	                    <field name="work_time_line_id" domain="[('work_time_id.employee_id', '=', employee_id)]" string="Worked Day" />
-    	                	<field name="request_change_id" domain="[('employee_id', '=', employee_id),('state', '=', 'approved')]" string="Change of Attendance" />
-		    	        	<field name="overtime_id" domain="[('employee_id', '=', employee_id),('state', '=', 'approved')]" />
-		    	        	<field name="leave_ids" widget="many2many_tags" 
-		    	        	       domain="[('employee_id', '=', employee_id),
+							<field name="temp_in" invisible="1"/>
+							<field name="temp_out" invisible="1"/>
+
+						</group>
+						<group string="References">
+							<field name="work_time_line_id" domain="[('work_time_id.employee_id', '=', employee_id)]" string="Worked Day"/>
+							<field name="request_change_id" domain="[('employee_id', '=', employee_id),('state', '=', 'approved')]" string="Change of Attendance"/>
+							<field name="overtime_id" domain="[('employee_id', '=', employee_id),('state', '=', 'approved')]"/>
+							<field name="leave_ids" widget="many2many_tags"
+								domain="[('employee_id', '=', employee_id),
 		    	        	       			('state', 'in', ('validate', 'validate1')), 
 		    	        	       			('type','=', 'remove'), 
-		    	        	       			('process_type', '=', False)]" 
-		    	        	       options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" />
-		    	        	
-		    	        	<field name="spl_holiday_ids" 
-		    	        	       string="Special Holidays" 
-		    	        	       widget="many2many_tags" 
-		    	        	       domain="[('holiday_type', '=', 'special')]" 
-		    	        	       options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" />
-		    	        	
-		    	        	<field name="reg_holiday_ids" 
-		    	        	       string="Regular Holidays" 
-		    	        	       widget="many2many_tags" 
-		    	        	       domain="[('holiday_type', '=', 'regular')]" 
-		    	        	       options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" />
-		    	        	
-    	                </group>
-    	        	</group>
-    	        </xpath>
-    	        <xpath expr="//group[1]" position="after">
-    	            <group>
-    	                <group string="Worked Hours">
-		    	        	<field name="worked_hours" string="Regular" />
-		    	        	<label for="absent_hours" string="Absent" />
-		    	        	<div class="o_row">
-		    	        		<field name="absent_hours" string="Absent" />
-		    	        		<field name="is_absent" string="Absent" invisible="1" />
-		    	        		<field name="is_leave" string="Leaves" invisible="1" />
-		    	        		<field name="is_holiday" string="Holiday" invisible="1" />
-		    	        		<field name="is_suspended" string="Suspended" invisible="1" />
-		    	        	</div>
-		    	        	<field name="ob_hours" string="OB" />
-		    	        	<field name="leave_hours" string="LWP" />
-		    	        	<field name="leave_wop_hours" string="LWOP" />
-		    	        	<field name="late_hours" string="Late" />
-		    	        	<field name="undertime_hours" />
-		    	        	<field name="night_diff_hours" string="Night Shift Differential" />
-    	        		</group>
-    	        		<group string="Overtime Hours">
-    	        			<field name="overtime_hours" string="Regular" />
-    	        			<label for="rest_day_hours" string="Rest Day" />
-    	        			<div class="o_row">
-    	        				<field name="rest_day_hours" string="Rest Day" />
-    	        				<field name="rest_day_ot_hours" string="Rest Day Overtime" />
-    	        				in excess of 8 hours
-    	        			</div>
-    	        			<label for="sp_holiday_hours" string="Special Holiday" />
-    	        			<div class="o_row">
-    	        				<field name="sp_holiday_hours" string="Special Holiday" />
-    	        				<field name="sp_hday_ot_hours" />
-    	        				in excess of 8 hours
-    	        			</div>
-    	        			<label for="reg_holiday_hours" string="Regular Holiday"/>
-    	        			<div class="o_row">
-    	        				<field name="reg_holiday_hours" string="Regular Holiday" />
-    	        				<field name="reg_hday_ot_hours" />
-    	        				in excess of 8 hours
-    	        			</div>
+		    	        	       			('process_type', '=', False)]"
+								options="{'no_open':True, 'no_create_edit':True, 'no_create':True}"/>
 
-    	        			<field name="night_diff_ot_hours" string="Night Differential" />
-    	        			<field name="rest_day_overtime" invisible="1"/>
-    	        		</group>
-    	        	</group>
-    	        </xpath>
-    	    </field>
-    	</record>
-    	<record id="hr_attendance_change_view_tree" model="ir.ui.view">
-    	    <field name="name">HR Attendance</field>
-    	    <field name="model">hr.attendance</field>
-    	    <field name="inherit_id" ref="hr_attendance.view_attendance_tree" />
-    	    <field name="arch" type="xml">
+							<field name="spl_holiday_ids" string="Special Holidays" widget="many2many_tags" domain="[('holiday_type', '=', 'special')]"
+								options="{'no_open':True, 'no_create_edit':True, 'no_create':True}"/>
+
+							<field name="reg_holiday_ids" string="Regular Holidays" widget="many2many_tags" domain="[('holiday_type', '=', 'regular')]"
+								options="{'no_open':True, 'no_create_edit':True, 'no_create':True}"/>
+
+						</group>
+					</group>
+				</xpath>
+				<xpath expr="//group[1]" position="after">
+					<group>
+						<group string="Worked Hours">
+							<field name="worked_hours" string="Regular"/>
+							<label for="absent_hours" string="Absent"/>
+							<div class="o_row">
+								<field name="absent_hours" string="Absent"/>
+								<field name="is_absent" string="Absent" invisible="1"/>
+								<field name="is_leave" string="Leaves" invisible="1"/>
+								<field name="is_holiday" string="Holiday" invisible="1"/>
+								<field name="is_suspended" string="Suspended" invisible="1"/>
+							</div>
+							<field name="ob_hours" string="OB"/>
+							<field name="leave_hours" string="LWP"/>
+							<field name="leave_wop_hours" string="LWOP"/>
+							<field name="late_hours" string="Late"/>
+							<field name="undertime_hours"/>
+							<field name="night_diff_hours" string="Night Shift Differential"/>
+						</group>
+						<group string="Overtime Hours">
+							<field name="overtime_hours" string="Regular"/>
+							<label for="rest_day_hours" string="Rest Day"/>
+							<div class="o_row">
+								<field name="rest_day_hours" string="Rest Day"/>
+    	        				<field name="rest_day_ot_hours" string="Rest Day Overtime"/> in excess of 8 hours </div>
+							<label for="sp_holiday_hours" string="Special Holiday"/>
+							<div class="o_row">
+								<field name="sp_holiday_hours" string="Special Holiday"/>
+    	        				<field name="sp_hday_ot_hours"/> in excess of 8 hours </div>
+							<label for="reg_holiday_hours" string="Regular Holiday"/>
+							<div class="o_row">
+								<field name="reg_holiday_hours" string="Regular Holiday"/>
+    	        				<field name="reg_hday_ot_hours"/> in excess of 8 hours </div>
+
+							<field name="night_diff_ot_hours" string="Night Differential"/>
+							<field name="rest_day_overtime" invisible="1"/>
+						</group>
+					</group>
+				</xpath>
+			</field>
+		</record>
+		<record id="hr_attendance_change_view_tree" model="ir.ui.view">
+			<field name="name">HR Attendance</field>
+			<field name="model">hr.attendance</field>
+			<field name="inherit_id" ref="hr_attendance.view_attendance_tree"/>
+			<field name="arch" type="xml">
 				<xpath expr="//tree" position="attributes">
 					<attribute name="default_order">check_in desc</attribute>
 				</xpath>
 
-    	        <field name="employee_id" position="after"  >
-    	        	<field name="schedule_in" />
-    	        	<field name="schedule_out" />
+				<field name="employee_id" position="after">
+					<field name="schedule_in"/>
+					<field name="schedule_out"/>
 					<field name="is_hide_check_time" invisible="1"/>
 				</field>
 				<field name="check_in" position="attributes">
-    	        	<attribute name="string">Actual Time In</attribute>
-    	        	<attribute name="attrs">{'invisible':[('is_hide_check_time', '=', True)]}</attribute>
-<!--    	        	<attribute name="attrs">{'invisible':['|', '|', '|', ('is_absent', '=', True), ('is_leave', '=', True), ('is_holiday', '=', True), ('is_suspended', '=', True)]}</attribute>-->
-    	        </field>
-    	        <field name="check_out" position="attributes">
-    	        	<attribute name="string">Actual Time Out</attribute>
-    	        	<attribute name="attrs">{'invisible':[('is_hide_check_time', '=', True)]}</attribute>
-    	        </field>
-    	        <field name="check_out" string="Time Out" />
-    	        <xpath expr="//field[@name='check_out']" position="after">
+					<attribute name="string">Actual Time In</attribute>
+					<attribute name="attrs">{'invisible':[('is_hide_check_time', '=', True)]}</attribute>
+					<!--    	        	<attribute name="attrs">{'invisible':['|', '|', '|', ('is_absent', '=', True), ('is_leave', '=', True), ('is_holiday', '=', True), ('is_suspended', '=',
+					True)]}</attribute>-->
+				</field>
+				<field name="check_out" position="attributes">
+					<attribute name="string">Actual Time Out</attribute>
+					<attribute name="attrs">{'invisible':[('is_hide_check_time', '=', True)]}</attribute>
+				</field>
+				<field name="check_out" string="Time Out"/>
+				<xpath expr="//field[@name='check_out']" position="after">
 
-    	        	<!--<field name="work_time_line_id"
+					<!--<field
+					name="work_time_line_id"
     	        	       domain="[('work_time_id.employee_id', '=', employee_id)]"
     	        	       string="Worked Day"
 					       />-->
-    	        	<!--Worked Hours-->
-    	        	<field name="worked_hours" string="Regular Hour" />
-    	        	<field name="absent_hours" string="Absent Hour" />
-    	        	<field name="ob_hours" string="OB Hour" />
-    	        	<field name="leave_hours" string="LWP Hour" />
-    	        	<field name="leave_wop_hours" string="LWOP Hour" />
-    	        	<field name="late_hours" string="Late" />
-    	        	<field name="undertime_hours" />
-    	        	<field name="rest_day_hours" string="Rest Day" />
-    	        	<field name="sp_holiday_hours" string="Special Holiday" />
-    	        	<field name="reg_holiday_hours" string="Regular Holiday" />
-    	        	<field name="night_diff_hours" string="Night Shift Differential" />
-    	        	<!--End of Worked Hours-->
+					<!--Worked
+					Hours-->
+					<field name="worked_hours" string="Regular Hour"/>
+					<field name="absent_hours" string="Absent Hour"/>
+					<field name="ob_hours" string="OB Hour"/>
+					<field name="leave_hours" string="LWP Hour"/>
+					<field name="leave_wop_hours" string="LWOP Hour"/>
+					<field name="late_hours" string="Late"/>
+					<field name="undertime_hours"/>
+					<field name="rest_day_hours" string="Rest Day"/>
+					<field name="sp_holiday_hours" string="Special Holiday"/>
+					<field name="reg_holiday_hours" string="Regular Holiday"/>
+					<field name="night_diff_hours" string="Night Shift Differential"/>
+					<!--End
+					of Worked Hours-->
 
-    	        	<!--Overtime-->
-    	        	<field name="overtime_hours" string="Regular Overtime" />
-        			<field name="rest_day_ot_hours" string="Rest Day Overtime" />
-        			<field name="sp_hday_ot_hours" string="Special Holiday Overtime" />
-        			<field name="reg_hday_ot_hours" string="Regular Holiday Overtime" />
-        			<field name="night_diff_ot_hours" string="Night Differential Overtime" />
-        			<!--End of Overtime-->
-        			<!--References-->
-   	        		<!--<field name="request_change_id" domain="[('employee_id', '=', employee_id),('state', '=', 'approved')]" string="Official Business" />
+					<!--Overtime-->
+					<field name="overtime_hours" string="Regular Overtime"/>
+					<field name="rest_day_ot_hours" string="Rest Day Overtime"/>
+					<field name="sp_hday_ot_hours" string="Special Holiday Overtime"/>
+					<field name="reg_hday_ot_hours" string="Regular Holiday Overtime"/>
+					<field name="night_diff_ot_hours" string="Night Differential Overtime"/>
+					<!--End
+					of Overtime-->
+					<!--References-->
+					<!--<field
+					name="request_change_id" domain="[('employee_id', '=', employee_id),('state', '=', 'approved')]" string="Official Business" />
     	        	-->
-    	        	<field name="remarks" readonly="1" />
+					<field name="remarks" readonly="1"/>
 
-    	        	<!--End of References-->
-    	        	<field name="is_absent" invisible="1" />
-    	        	<field name="is_holiday" invisible="1" />
-    	        	<field name="is_leave" invisible="1" />
-    	        	<field name="is_suspended" string="Suspended" invisible="1" />
-    	        </xpath>
-    	    </field>
-    	</record>
-    	<!-- End of HR Attendance -->
-    	<!--HR Timesheet-->
-    	<record id="hr_attendance_change_view_form1" model="ir.ui.view">
-    	    <field name="name">HR Attendance</field>
-    	    <field name="model">hr.attendance</field>
-    	    <field name="inherit_id" ref="hr_timesheet_attendance.hr_attendance_view_form" />
-    	    <field name="arch" type="xml">
-    	        <xpath expr="//field[@name='sheet_id']" position="attributes">
-    	        	<attribute name="invisible">1</attribute>
-    	        </xpath>
-    		</field>
-    	</record>
-    	<record id="hr_attendance_change_view_tree1" model="ir.ui.view">
-    	    <field name="name">HR Attendance</field>
-    	    <field name="model">hr.attendance</field>
-    	    <field name="inherit_id" ref="hr_timesheet_attendance.view_attendance_tree" />
-    	    <field name="arch" type="xml">
-    	        <xpath expr="//field[@name='sheet_id']" position="attributes">
-    	        	<attribute name="invisible">1</attribute>
-    	        </xpath>
-    		</field>
-    	</record>
-    	<!--End of HR Timesheet-->
-    	<!--Start of HR Attendance Overtime-->
-    	<record id="hr_attendance_overtime_view_form" model="ir.ui.view">
-    	    <field name="name">HR Attendance Overtime</field>
-    	    <field name="model">hr.attendance.overtime</field>
-    	    <field name="arch" type="xml">
-    	        <form>
-    	            <header>
-    	                <button name="btn_make_draft" 
-    	                    	groups="hr.group_hr_user,hr.group_hr_manager"
-    	                    	string="RESET TO DRAFT" 
-    	                    	states="approved,disapproved"
-    	                    	type="object"
-    	                    	class="btn btn-primary" />
+					<!--End
+					of References-->
+					<field name="is_absent" invisible="1"/>
+					<field name="is_holiday" invisible="1"/>
+					<field name="is_leave" invisible="1"/>
+					<field name="is_suspended" string="Suspended" invisible="1"/>
+				</xpath>
+			</field>
+		</record>
+		<!-- End of HR Attendance -->
+		<!--HR
+		Timesheet-->
+		<record id="hr_attendance_change_view_form1" model="ir.ui.view">
+			<field name="name">HR Attendance</field>
+			<field name="model">hr.attendance</field>
+			<field name="inherit_id" ref="hr_timesheet_attendance.hr_attendance_view_form"/>
+			<field name="arch" type="xml">
+				<xpath expr="//field[@name='sheet_id']" position="attributes">
+					<attribute name="invisible">1</attribute>
+				</xpath>
+			</field>
+		</record>
+		<record id="hr_attendance_change_view_tree1" model="ir.ui.view">
+			<field name="name">HR Attendance</field>
+			<field name="model">hr.attendance</field>
+			<field name="inherit_id" ref="hr_timesheet_attendance.view_attendance_tree"/>
+			<field name="arch" type="xml">
+				<xpath expr="//field[@name='sheet_id']" position="attributes">
+					<attribute name="invisible">1</attribute>
+				</xpath>
+			</field>
+		</record>
+		<!--End
+		of HR Timesheet-->
+		<!--Start
+		of HR Attendance Overtime-->
+		<record id="hr_attendance_overtime_view_form" model="ir.ui.view">
+			<field name="name">HR Attendance Overtime</field>
+			<field name="model">hr.attendance.overtime</field>
+			<field name="arch" type="xml">
+				<form>
+					<header>
+						<button name="btn_make_draft" groups="hr.group_hr_user,hr.group_hr_manager" string="RESET TO DRAFT" states="approved,disapproved" type="object"
+							class="btn btn-primary"/>
 
-						<button name="btn_approved"
-	                        	groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin"
-	                        	string="APPROVE" 
-	                        	states="draft" 
-	                        	type="object"
-								context="{'is_approve':True}"
-	                        	class="btn btn-primary"/>
-	                    
-	                    <button name="btn_make_leave" 
-	                        	groups="hr.group_hr_user,hr.group_hr_manager"
-	                        	string="CONVERT TO LEAVE"
-	                         	attrs="{'invisible': ['|',('state', '!=', 'approved'), ('offset', '=', False)]}"  
-	                         	type="object" class="btn btn-primary" />
-	                    
-	                    <button name="btn_disapproved" 
-	                        	groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin"
-	                        	string="DISAPPROVED" 
-	                        	states="draft" 
-	                        	type="object" 
-	                        	class="btn btn-primary" />
-	                    
-	                    <button name="btn_cancelled" 
-	                        	groups="hr.group_hr_user,hr.group_hr_manager"
-	                        	string="CANCEL" 
-	                        	states="approved" 
-	                        	type="object" 
-	                        	class="btn btn-primary" />
-	                    
-	                    <field name="state" 
-	                           widget="statusbar" 
-	                           nolabel="1" 
-	                           statusbar_visible="draft,approved,cancelled" />
-    	            </header>
-    	        	<sheet>
-    	        	    <group>
-    	        	        <group string="Employee" >
-	    	        	        
-	    	        	        <field name="employee_id" attrs="{'readonly': [('state', '!=', 'draft')]}"  
-	    	        	            options="{'no_open':True, 'no_create_edit':True, 'no_create':True}"/>
-	    	        		</group>
-	    	        		<group string="Date Approved" groups="hris.group_hr_user,hris.group_approver">
-	    	        		   	<field name="date_approved" groups="hr.group_hr_user,hr.group_hr_manager" attrs="{'readonly': [('state', '!=', 'draft')]}" />
-	    	        		</group>
-	    	        		<group string="Overtime">
-	    	        		    <label for="start_time" string="Period" />
-	    	        		    <div class="o_row">
-	    	        		    	<field name="start_time" attrs="{'readonly': [('state', '!=', 'draft')]}" />
-	    	        		    	<field name="end_time" attrs="{'readonly': [('state', '!=', 'draft')]}" />
-	    	        		    </div>
-	    	        		    <label for="with_break" />
-	    	        		    <div class="o_row">
-	    	        		    	<field name="with_break" attrs="{'readonly': [('state', '!=', 'draft')]}" />
-	    	        		    	<field name="break_period" widget="float_time" 
-	    	        		        attrs="{'required': [('with_break', '=', True)], 
+						<button name="btn_approved" groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin" string="APPROVE" states="draft" type="object"
+							context="{'is_approve':True}" class="btn btn-primary"/>
+
+						<button name="btn_make_leave" groups="hr.group_hr_user,hr.group_hr_manager" string="CONVERT TO LEAVE"
+							attrs="{'invisible': ['|',('state', '!=', 'approved'), ('offset', '=', False)]}" type="object" class="btn btn-primary"/>
+
+						<button name="btn_disapproved" groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin" string="DISAPPROVED" states="draft" type="object"
+							class="btn btn-primary"/>
+
+						<button name="btn_cancelled" groups="hr.group_hr_user,hr.group_hr_manager" string="CANCEL" states="approved" type="object" class="btn btn-primary"/>
+
+						<field name="state" widget="statusbar" nolabel="1" statusbar_visible="draft,approved,cancelled"/>
+					</header>
+					<sheet>
+						<group>
+							<group string="Employee">
+
+								<field name="employee_id" attrs="{'readonly': [('state', '!=', 'draft')]}" options="{'no_open':True, 'no_create_edit':True, 'no_create':True}"/>
+							</group>
+							<group string="Date Approved" groups="hris.group_hr_user,hris.group_approver">
+								<field name="date_approved" groups="hr.group_hr_user,hr.group_hr_manager" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+							</group>
+							<group string="Overtime">
+								<label for="start_time" string="Period"/>
+								<div class="o_row">
+									<field name="start_time" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+									<field name="end_time" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+								</div>
+								<label for="with_break"/>
+								<div class="o_row">
+									<field name="with_break" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+									<field name="break_period" widget="float_time"
+										attrs="{'required': [('with_break', '=', True)], 
 	    	        		        'invisible': [('with_break', '=', False)], 
-	    	        		        'readonly': [('state', '!=', 'draft')]}" />
-	    	        		    	<div class="oe_inline"  attrs="{'required': [('with_break', '=', True)], 
+	    	        		        'readonly': [('state', '!=', 'draft')]}"/>
+									<div class="oe_inline"
+										attrs="{'required': [('with_break', '=', True)], 
 	    	        		        'invisible': [('with_break', '=', False)], 
-	    	        		        'readonly': [('state', '!=', 'draft')]}">w/in 8 hrs</div>
-	    	        		    	<field name="break_period2" widget="float_time" 
-	    	        		        attrs="{'required': [('with_break', '=', True)], 
+	    	        		        'readonly': [('state', '!=', 'draft')]}">w/in
+										8 hrs</div>
+									<field name="break_period2" widget="float_time"
+										attrs="{'required': [('with_break', '=', True)], 
 	    	        		        'invisible': [('with_break', '=', False)], 
-	    	        		        'readonly': [('state', '!=', 'draft')]}" />
-	    	        		    	<div class="oe_inline"  attrs="{'required': [('with_break', '=', True)], 
+	    	        		        'readonly': [('state', '!=', 'draft')]}"/>
+									<div class="oe_inline"
+										attrs="{'required': [('with_break', '=', True)], 
 	    	        		        'invisible': [('with_break', '=', False)], 
-	    	        		        'readonly': [('state', '!=', 'draft')]}">in excess of 8 hrs</div>
-	    	        		    </div>
-	    	        		    <field name="hours_requested" />
-	    	        		  </group>
-	    	        		  
-	    	        		  <group string="Offset">
-		    	        		    <label for="offset" string="Offset" />
-		    	        		    <div class="o_row">
-			    	        		    <field name="offset" attrs="{'readonly': [('state', '!=', 'draft')]}" />
-			    	        		    <field name="holiday_status_id" groups="hr.group_hr_user,hr.group_hr_manager"
-			    	        		         attrs="{'readonly': [('state', '!=', 'draft')],
+	    	        		        'readonly': [('state', '!=', 'draft')]}">in
+										excess of 8 hrs</div>
+								</div>
+								<field name="hours_requested"/>
+							</group>
+
+							<group string="Offset">
+								<label for="offset" string="Offset"/>
+								<div class="o_row">
+									<field name="offset" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+									<field name="holiday_status_id" groups="hr.group_hr_user,hr.group_hr_manager"
+										attrs="{'readonly': [('state', '!=', 'draft')],
 			    	        		         		'invisible': [('offset','=', False)],
 			    	        		         		'required':[('offset', '=', True)]}"
-			    	        		         options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" />
-			    	        		</div>
-		    	        		    <field name="holiday_id" readonly="1"
-		    	        		           options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" />
-		    	        	  </group>
-    	        		      <group string="Reason" >
-    	        		   		<field nolabel="1" name="overtime_reason" attrs="{'readonly': [('state', '!=', 'draft')]}" required="True"/>
-    	        		      </group>
-    	        		      <field name="rest_day_overtime" invisible="1" />
-    	        		      <field name="legal_holiday" invisible="1" />
-    	        		      <field name="special_holiday" invisible="1" />
-    	        		      <field name="no_ot_late" invisible="1" />
-	   	        		      <div class="o_row" invisible="1">
-								 <label for="lockout" />
-								 <field name="ot_lockout" />
-								 <field name="ot_lockout_period" attrs="{'invisible': [('ot_lockout', '=', False)]}" />payroll cutoff
-							  </div>
-    	        	   	 	</group>
-    	        	</sheet>
-    	        	<div class="oe_chatter">
-	                	<field name="message_follower_ids" widget="mail_followers" />
-	                	<field name="message_ids" widget="mail_thread" />
-	                </div>
-    	        </form>
-    	    </field>
-    	</record>
-    	
-    	<record id="hr_attendance_overtime_tree" model="ir.ui.view">
-    	    <field name="name">HR Attendance Overtime</field>
-    	    <field name="model">hr.attendance.overtime</field>
-    	    <field name="arch" type="xml">
-    	        <tree>
-    	            <field name="employee_id" />
-    	        	<field name="start_time" />
-    	        	<field name="end_time" />
-    	        	<field name="hours_requested" />
-    	        	<field name="date_approved" />
-    	        	<field name="rest_day_overtime" />
-    	        	<field name="state" />
-    	        </tree>
-    	    </field>
-    	</record>
-    	
-	<record id="hr_attendance_search_view" model="ir.ui.view">
-    	    <field name="name">HR Attendance Search</field>
-    	    <field name="model">hr.attendance.overtime</field>
-    	    <field name="arch" type="xml">
-    	        <search>
-    	            <field name="employee_id" string="Employee" filter_domain="[('employee_id.name', 'ilike', self)]" />
-    	        </search>
-    	    </field>
-    	</record>
+										options="{'no_open':True, 'no_create_edit':True, 'no_create':True}"/>
+								</div>
+								<field name="holiday_id" readonly="1" options="{'no_open':True, 'no_create_edit':True, 'no_create':True}"/>
+							</group>
+							<group string="Reason">
+								<field nolabel="1" name="overtime_reason" attrs="{'readonly': [('state', '!=', 'draft')]}" required="True"/>
+							</group>
+							<field name="rest_day_overtime" invisible="1"/>
+							<field name="legal_holiday" invisible="1"/>
+							<field name="special_holiday" invisible="1"/>
+							<field name="no_ot_late" invisible="1"/>
+							<div class="o_row" invisible="1">
+								<label for="lockout"/>
+								 <field name="ot_lockout"/>
+								 <field name="ot_lockout_period" attrs="{'invisible': [('ot_lockout', '=', False)]}"/>payroll cutoff </div>
+						</group>
+					</sheet>
+					<div class="oe_chatter">
+						<field name="message_follower_ids" widget="mail_followers"/>
+						<field name="message_ids" widget="mail_thread"/>
+					</div>
+				</form>
+			</field>
+		</record>
 
-    	<record id="action_hr_attendance_overtime" model="ir.actions.act_window">
-    	    <field name="name">HR Attendance Overtime</field>
-    	    <field name="res_model">hr.attendance.overtime</field>
-    	    <field name="view_mode">tree,form</field>
-    	    <field name="view_type">form</field>
-    	    <field name="help" type="html">
-    	        <p class="oe_nocontent_create_view">
-    	        	Click here to add new attendance overtime.
-    	        </p>
-    	    </field>
-    	</record>
-    	
-    	<menuitem  id="menu_hr_attendance_overtime" 
-	        	   name="Employee Overtime"
-	        	   action="action_hr_attendance_overtime" 
-	        	   parent="hr_attendance.menu_hr_attendance_manage_attendances"
-	        	   groups="hris.payroll_admin,hris.group_hr_user,hris.group_approver,hris.group_firstlevel"
-                   sequence="25"/>
-    	<!--End of HR Attendance Overtime-->
-    	
-    	<!--Start of Holiday-->
-    	<record id="hr_attendance_holiday_view_form" model="ir.ui.view">
-    		<field name="name">Holidays</field>
-    		<field name="model">hr.attendance.holidays</field>
-    		<field name="arch" type="xml">
-    		    <form>
-    		    	<sheet>
-    		    	    <group>
-    		    	        <group>
-    		    	            <field name="name" />
-    		    	            <field name="holiday_start" />
-    		    	            <field name="holiday_end" />
-    		    	            <field name="holiday_type" />
-                                <field name="recurring_holiday" />
-    		    	            <field name="work_location_id" options="{'no_create':True, 'no_create_edit':True, 'no_open':True}"/>
-    		    	        </group>
-    		    	
-    		    	       </group>
-    		    	</sheet>
-    		    </form>
-    		</field>
-    	</record>
-    	
-    	<record id="hr_attendance_holiday_view_tree" model="ir.ui.view">
-    	    <field name="name">Holidays</field>
-    	   	<field name="model">hr.attendance.holidays</field>
-    	   	<field name="arch" type="xml">
-    	   	    <tree>
-    	   	        <field name="name" />
-    	            <field name="holiday_start" />
-    	            <field name="holiday_end" />
-    	            <field name="holiday_type" />
-    	            <field name="work_location_id" />
-    	   	    </tree>
-    	   	</field>
-    	</record>
-    	
-    	<record id="action_hr_attendance_holiday" model="ir.actions.act_window">
-    		<field name="name">Holidays</field>
-    		<field name="res_model">hr.attendance.holidays</field>
-    		<field name="view_mode">tree,form</field>
-    		<field name="view_type">form</field>
-    		<field name="help" type="html">
-    		     <p class="oe_nocontent_create_view">
-    	        	Click here to add new holidays.
-    	        </p>
-    		</field>
-    	</record>
-    	
-    	<menuitem  id="menu_hr_attendance_holiday"
-	   	    	   parent="menu_hr_manage_schedule" 
-	        	   name="Holidays"
-	        	   action="action_hr_attendance_holiday" 
-	        	   sequence="2"
-	        	    />
-    	<!--End of Holiday-->
-    </data>
+		<record id="hr_attendance_overtime_tree" model="ir.ui.view">
+			<field name="name">HR Attendance Overtime</field>
+			<field name="model">hr.attendance.overtime</field>
+			<field name="arch" type="xml">
+				<tree>
+					<field name="employee_id"/>
+					<field name="start_time"/>
+					<field name="end_time"/>
+					<field name="hours_requested"/>
+					<field name="date_approved"/>
+					<field name="rest_day_overtime"/>
+					<field name="state"/>
+				</tree>
+			</field>
+		</record>
+
+		<record id="hr_attendance_search_view" model="ir.ui.view">
+			<field name="name">HR Attendance Search</field>
+			<field name="model">hr.attendance.overtime</field>
+			<field name="arch" type="xml">
+				<search>
+					<field name="employee_id" string="Employee" filter_domain="[('employee_id.name', 'ilike', self)]"/>
+				</search>
+			</field>
+		</record>
+
+		<record id="action_hr_attendance_overtime" model="ir.actions.act_window">
+			<field name="name">HR Attendance Overtime</field>
+			<field name="res_model">hr.attendance.overtime</field>
+			<field name="view_mode">tree,form</field>
+			<field name="view_type">form</field>
+			<field name="help" type="html">
+				<p class="oe_nocontent_create_view"> Click here to add new attendance overtime. </p>
+			</field>
+		</record>
+
+		<menuitem id="menu_hr_attendance_overtime" name="Employee Overtime" action="action_hr_attendance_overtime" parent="hr_attendance.menu_hr_attendance_manage_attendances"
+			groups="hris.payroll_admin,hris.group_hr_user,hris.group_approver,hris.group_firstlevel" sequence="25"/>
+		<!--End
+		of HR Attendance Overtime-->
+
+		<!--Start
+		of Holiday-->
+		<record id="hr_attendance_holiday_view_form" model="ir.ui.view">
+			<field name="name">Holidays</field>
+			<field name="model">hr.attendance.holidays</field>
+			<field name="arch" type="xml">
+				<form>
+					<sheet>
+						<group>
+							<group>
+								<field name="name"/>
+								<field name="holiday_start"/>
+								<field name="holiday_end"/>
+								<field name="holiday_type"/>
+								<field name="recurring_holiday"/>
+								<field name="work_location_id" options="{'no_create':True, 'no_create_edit':True, 'no_open':True}"/>
+							</group>
+
+						</group>
+					</sheet>
+				</form>
+			</field>
+		</record>
+
+		<record id="hr_attendance_holiday_view_tree" model="ir.ui.view">
+			<field name="name">Holidays</field>
+			<field name="model">hr.attendance.holidays</field>
+			<field name="arch" type="xml">
+				<tree>
+					<field name="name"/>
+					<field name="holiday_start"/>
+					<field name="holiday_end"/>
+					<field name="holiday_type"/>
+					<field name="work_location_id"/>
+				</tree>
+			</field>
+		</record>
+
+		<record id="action_hr_attendance_holiday" model="ir.actions.act_window">
+			<field name="name">Holidays</field>
+			<field name="res_model">hr.attendance.holidays</field>
+			<field name="view_mode">tree,form</field>
+			<field name="view_type">form</field>
+			<field name="help" type="html">
+				<p class="oe_nocontent_create_view"> Click here to add new holidays. </p>
+			</field>
+		</record>
+
+		<menuitem id="menu_hr_attendance_holiday" parent="menu_hr_manage_schedule" name="Holidays" action="action_hr_attendance_holiday" sequence="2"/>
+		<!--End
+		of Holiday-->
+	</data>
 </odoo>
