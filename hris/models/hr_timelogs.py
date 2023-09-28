@@ -227,9 +227,8 @@ class Timelogs(models.Model):
             if values:
 
                 barcode = key[0]
-                check_in  = datetime.strptime(values[0], self.parser.datetime_format) #format '%m/%d/%Y %H:%M:%S'
-                check_out = datetime.strptime(values[-1], self.parser.datetime_format) #format '%m/%d/%Y %H:%M:%S'
-
+                check_in  = datetime.strptime(values[0], '%Y-%m-%d %H:%M:%S') #format '%m/%d/%Y %H:%M:%S'
+                check_out = datetime.strptime(values[-1], '%Y-%m-%d %H:%M:%S') #format '%m/%d/%Y %H:%M:%S'
                 tz_name = self._context.get('tz') or self.env.user.tz
                 if not tz_name:
                     raise UserError(_('No timezone!\n\nConfigure your timezone\n\nClick your Profile Name>Preferences>Timezone(Asia/Manila)'))
@@ -244,7 +243,7 @@ class Timelogs(models.Model):
                 utc_date_out = local_dt_out.astimezone(pytz.utc)
                 utc_txn_date_out  = utc_date_out.strftime(DATETIME_FORMAT)
 
-                employee_id = self.env['hr.employee'].search([('barcode', '=', barcode)], limit=1).id
+                employee_id = self.env['hr.employee'].search([('employee_num', '=', barcode)], limit=1).id
                 if not employee_id:
                     continue
                 timelogs['employee_id'] = employee_id or False
