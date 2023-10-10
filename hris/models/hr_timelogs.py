@@ -225,10 +225,20 @@ class Timelogs(models.Model):
         for key, values in sorted(self.get_attendance_rbt().items(), key=lambda r:r[1]):
             timelogs = {}
             if values:
-
                 barcode = key[0]
-                check_in  = datetime.strptime(values[0], '%Y-%m-%d %H:%M:%S') #format '%m/%d/%Y %H:%M:%S'
-                check_out = datetime.strptime(values[-1], '%Y-%m-%d %H:%M:%S') #format '%m/%d/%Y %H:%M:%S'
+                ######################### LOOP DIFFERENT TIME FORMAT ###################################
+                date_formats = ['%Y-%m-%d %H:%M:%S', '%m/%d/%Y %H:%M:%S']
+                for date_format in date_formats:
+                    try:
+                        check_in  = datetime.strptime(values[0], date_format)
+                        check_out = datetime.strptime(values[-1], date_format)
+                        break
+                    except ValueError:
+                        pass  # If parsing fails with one format, try the next
+                ###############################################                
+                ########### FOR RETRIEVAL PURPOSES ############################# 
+                # check_in  = datetime.strptime(values[0], '%m/%d/%Y %H:%M:%S') #format '%Y-%m-%d %H:%M:%S',
+                # check_out = datetime.strptime(values[-1], '%m/%d/%Y %H:%M:%S') #format '%Y-%m-%d %H:%M:%S',
                 tz_name = self._context.get('tz') or self.env.user.tz
                 if not tz_name:
                     raise UserError(_('No timezone!\n\nConfigure your timezone\n\nClick your Profile Name>Preferences>Timezone(Asia/Manila)'))
