@@ -13,36 +13,36 @@
 		   		<field name="name">Over P250,000-Not Over P400,000</field>
 				<field name="min_range" eval="250000.01" /> 
 				<field name="max_range" eval="400000.0"/>           
-	            <field name="percentage" eval="20.0"/>
+	            <field name="percentage" eval="15.0"/>
 	           	<field name="prescribed_tax" eval="0" />
 	    </record>
 	    <record id="AIC3" model="annual.income.tax">
 		   		<field name="name">Over P400,000-Not Over P800,000</field>
 				<field name="min_range" eval="400000.01" /> 
 				<field name="max_range" eval="800000.0"/>           
-	            <field name="percentage" eval="25.0"/>
-	           	<field name="prescribed_tax" eval="30000.0" />
+	            <field name="percentage" eval="20.0"/>
+	           	<field name="prescribed_tax" eval="22500.0" />
 	    </record>	
         <record id="AIC4" model="annual.income.tax">
 		   		<field name="name">Over P800,000-Not Over P2,000,000</field>
 				<field name="min_range" eval="800000.01" /> 
 				<field name="max_range" eval="2000000.0"/>           
-	            <field name="percentage" eval="30.0"/>
-	           	<field name="prescribed_tax" eval="130000.0" />
+	            <field name="percentage" eval="25.0"/>
+	           	<field name="prescribed_tax" eval="102500.0" />
 	    </record>	
         <record id="AIC5" model="annual.income.tax">
-		   		<field name="name">Over P2,000,000-Not Over P5,000,000</field>
+		   		<field name="name">Over P2,000,000-Not Over P8,000,000</field>
 				<field name="min_range" eval="2000000.01" /> 
-				<field name="max_range" eval="5000000.0"/>           
-	            <field name="percentage" eval="32.0"/>
-	           	<field name="prescribed_tax" eval="490000.0" />
+				<field name="max_range" eval="8000000.0"/>           
+	            <field name="percentage" eval="30.0"/>
+	           	<field name="prescribed_tax" eval="402500.0" />
 	    </record>	
         <record id="AIC6" model="annual.income.tax">
-		   		<field name="name">Over P5,000,000</field>
-				<field name="min_range" eval="5000000.01" /> 
+		   		<field name="name">Over P8,000,000</field>
+				<field name="min_range" eval="8000000.01" /> 
 				<field name="max_range" eval="999000000.0"/>           
 	            <field name="percentage" eval="35.0"/>
-	           	<field name="prescribed_tax" eval="1450000.0" />
+	           	<field name="prescribed_tax" eval="2202500.0" />
 	    </record>	
         
         <!--End of Annual Income Tax-->

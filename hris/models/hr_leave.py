@@ -808,17 +808,26 @@ class HRLeave(models.Model):
             record.is_adjustment()
 
 
-    @api.multi
-    def action_approve(self):
-        """Check notice period and lockout period before approving."""
-        res = super(HRLeave, self).action_approve()
-        if not (self.env.user.has_group('hris.group_approver') or self.env.user.has_group('hris.group_hr_user') or self.env.user.has_group('hris.payroll_admin')):
-            raise UserError(_('Only an Approver can approve leaves requests.'))
+    # @api.multi
+    # def action_approve(self):
+    #     # raise ValidationError(self.id)      
+    #     """Check notice period and lockout period before approving."""
+    #     res = super(HRLeave, self).action_approve()
+    #     if not (self.env.user.has_group('hris.group_approver') or self.env.user.has_group('hris.group_hr_user') or self.env.user.has_group('hris.payroll_admin')):
+    #         raise UserError(_('Only an Approver can approve leaves requests.'))
         
-        for record in self:
-            record.apply_policy(record)
-            record.write({'date_approved': fields.Datetime.now()})
-        return res
+    #     for record in self:
+    #         record.apply_policy(record)
+    #         # record.env['hr.attendance'].create({
+    #         #     'employee_id': self.employee_id.id,
+    #         #     'check_in': self.date_from,
+    #         #     'check_out': self.date_to,
+    #         # })
+
+    #         # record.write({'leave_ids': [(4, self.id)],
+    #         #               'date_approved': fields.Datetime.now()})
+    #         # record.write({'date_approved': fields.Datetime.now()})
+    #     return res
       
     @api.onchange('process_type')
     def onchange_process_type(self):
@@ -876,7 +885,7 @@ class HRLeave(models.Model):
                     values = holiday._prepare_create_by_category(employee)
                     leaves += self.with_context(mail_notify_force_send=False).create(values)
                 # TODO is it necessary to interleave the calls?
-                leaves.action_approve()
+                # leaves.action_approve()
                 if leaves and leaves[0].double_validation:
                     leaves.action_validate()
         return True

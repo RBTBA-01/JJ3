@@ -3166,7 +3166,7 @@ class HRPayrollAttendance(models.Model):
         late_attendance_list = [item for item in x if item not in worked_hours]
 
         # Attach the computed values from late_attendance_list to another table inside the payslip (Late Processing)
-        self.late_attendances = [(4, i.id, None) for i in late_attendance_list]
+        # self.late_attendances = [(4, i.id, None) for i in late_attendance_list]
         
         # Official Business
         attendances = {

@@ -225,11 +225,20 @@ class Timelogs(models.Model):
         for key, values in sorted(self.get_attendance_rbt().items(), key=lambda r:r[1]):
             timelogs = {}
             if values:
-
                 barcode = key[0]
-                check_in  = datetime.strptime(values[0], self.parser.datetime_format) #format '%m/%d/%Y %H:%M:%S'
-                check_out = datetime.strptime(values[-1], self.parser.datetime_format) #format '%m/%d/%Y %H:%M:%S'
-
+                ######################### LOOP DIFFERENT TIME FORMAT ###################################
+                date_formats = ['%Y-%m-%d %H:%M:%S', '%m/%d/%Y %H:%M:%S']
+                for date_format in date_formats:
+                    try:
+                        check_in  = datetime.strptime(values[0], date_format)
+                        check_out = datetime.strptime(values[-1], date_format)
+                        break
+                    except ValueError:
+                        pass  # If parsing fails with one format, try the next
+                ###############################################                
+                ########### FOR RETRIEVAL PURPOSES ############################# 
+                # check_in  = datetime.strptime(values[0], '%m/%d/%Y %H:%M:%S') #format '%Y-%m-%d %H:%M:%S',
+                # check_out = datetime.strptime(values[-1], '%m/%d/%Y %H:%M:%S') #format '%Y-%m-%d %H:%M:%S',
                 tz_name = self._context.get('tz') or self.env.user.tz
                 if not tz_name:
                     raise UserError(_('No timezone!\n\nConfigure your timezone\n\nClick your Profile Name>Preferences>Timezone(Asia/Manila)'))
@@ -244,7 +253,7 @@ class Timelogs(models.Model):
                 utc_date_out = local_dt_out.astimezone(pytz.utc)
                 utc_txn_date_out  = utc_date_out.strftime(DATETIME_FORMAT)
 
-                employee_id = self.env['hr.employee'].search([('barcode', '=', barcode)], limit=1).id
+                employee_id = self.env['hr.employee'].search([('employee_num', '=', barcode)], limit=1).id
                 if not employee_id:
                     continue
                 timelogs['employee_id'] = employee_id or False
