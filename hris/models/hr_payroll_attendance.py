@@ -4254,7 +4254,7 @@ class PayrollPeriod(models.Model):
 
 class PayrollPeriodLine(models.Model):
     _name = 'hr.payroll.period_line'
-
+    _order = 'start_date DESC'
     _description = 'Payroll Period Line'
 
     @api.multi
