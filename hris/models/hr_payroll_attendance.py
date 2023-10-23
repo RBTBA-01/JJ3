@@ -404,11 +404,18 @@ class HRAttendance(models.Model):
 
             overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
 
-        self.overtime_id = overtime.id
-
-        if rest_day and self.overtime_id:
-            self.overtime_id.rest_day_overtime = True
+        if rest_day:
+            check_in = fields.Datetime.from_string(self.check_in)
+            check_out = fields.Datetime.from_string(self.check_out)
+            duration = (check_out - check_in).total_seconds() / 3600.0
+            self.rest_day_hours = duration
             self.remarks = 'RD'
+            # Only set the rest day overtime if it's rest day
+            if overtime:
+                self.rest_day_ot_hours = overtime.hours_requested
+        else:
+            # Only set the self.overtime_id if it's not rest day
+            self.overtime_id = overtime.id
 
     def convert_date(self, date_leave):
         date_time_leaves = datetime.strptime(date_leave, '%Y-%m-%d %H:%M:%S')
@@ -521,7 +528,7 @@ class HRAttendance(models.Model):
         """Set references on attendances."""
         if self.work_time_line_id:
             rest_day = False
-        else:
+        if not self.work_time_line_id:
             rest_day = True
 
         self.get_leaves_reference()
@@ -529,7 +536,7 @@ class HRAttendance(models.Model):
         self.get_overtime_reference(rest_day)
 
         # holidays or restday must have no work_time_line_id
-        self.onchange_reference()
+        # self.onchange_reference()
         self.onchange_temp()
         self.get_suspension()
 
@@ -1391,7 +1398,7 @@ class HRAttendance(models.Model):
 #             absent_hours = TIME_TO_RENDER
         self.worked_hours = 0.0
         return absent_hours
-
+    # FOR REFRACTORING
     @api.depends('employee_id', 'check_in', 'check_out',
                  'work_time_line_id', 'is_absent',
                  'overtime_id', 'overtime_id.rest_day_overtime',
@@ -1760,6 +1767,7 @@ class HRAttendance(models.Model):
             """if holidays(Holiday Settings)"""
             if attendance.check_in and attendance.check_out and schedule_week_days and (attendance.reg_holiday_ids or attendance.spl_holiday_ids):
                 attendance.absent_hours = attendance._validate_holidays(schedule_week_days)
+    # FOR REFRACTORING
 
     def calculate_leave_hours(self, leave, lunch_break, lunch_break_period,
                               date_in, date_out, required_in, required_out, worked_hours):
@@ -1948,7 +1956,7 @@ class HRAttendance(models.Model):
     rest_day_hours = fields.Float('Rest Day Hours', compute="_worked_hours_computation", store=True)
     night_diff_ot_hours = fields.Float('Night Differential Overtime', compute='_compute_night_diff_overtime_hours',
                                        store=True)
-    rest_day_ot_hours = fields.Float('Rest Day Overtime', compute='_worked_hours_computation', store=True)
+    rest_day_ot_hours = fields.Float('Rest Day Overtime')
     reg_hday_ot_hours = fields.Float('Regular Holiday', compute='_worked_hours_computation', store=True)
     sp_hday_ot_hours = fields.Float('Special Holiday', compute='_worked_hours_computation', store=True)
 
@@ -2475,6 +2483,7 @@ class HRAttendanceOvertime(models.Model):
             vals = {}
             if att.rest_day_overtime:
                 vals['remarks'] = ''
+                vals['rest_day_ot_hours'] = ''
             vals['overtime_id'] = False
             att.write(vals)
 
@@ -2549,8 +2558,12 @@ class HRAttendanceOvertime(models.Model):
             if attendance.work_time_line_id:
                 record.rest_day_overtime = False
 
-            if record.rest_day_overtime:
-                attendance.write({'rest_day_overtime': True, 'remarks': 'RD'})
+            # if record.rest_day_overtime:
+                
+            #     attendance.write({
+            #         'rest_day_overtime': True,
+            #         'remarks': 'RD'
+            #     })
             record.is_adjustment()
 
         return self.write({'state': 'approved'})
@@ -4254,7 +4267,7 @@ class PayrollPeriod(models.Model):
 
 class PayrollPeriodLine(models.Model):
     _name = 'hr.payroll.period_line'
-
+    _order = 'start_date DESC'
     _description = 'Payroll Period Line'
 
     @api.multi
