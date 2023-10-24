@@ -424,7 +424,26 @@ class HRContract(models.Model):
     @api.onchange('avg_wrk_days_id')
     def onchange_awd(self):
         if self.avg_wrk_days_id:
-            self.average_working_days = self.avg_wrk_days_id.name
+            self.avg_wrk_days_id.name = self.average_working_days
+            self.salary_move.average_working_days = self.avg_wrk_days_id.name
+
+    # Insert data when importing from the csv file 
+    @api.depends('avg_wrk_days_id', 'average_working_days', 'wage', 'new_salary_date')
+    def _compute_awd(self):
+        for record in self:
+            if record.average_working_days > 0:
+                existing_avg_wrk_days = self.env['hr.avg_wrk_days.config'].search([('name', '=', record.average_working_days)], limit=1)
+                if existing_avg_wrk_days:
+                    record.avg_wrk_days_id = existing_avg_wrk_days
+                    record.wage = record.salary_move.amount
+                    record.new_salary_date = record.salary_move.date_start
+                else:
+                    new_avg_wrk_days = self.env['hr.avg_wrk_days.config'].create({
+                        'name': record.average_working_days,
+                    })
+                    record.avg_wrk_days_id = new_avg_wrk_days
+                    record.wage = record.salary_move.amount
+                    record.new_salary_date = record.salary_move.date_start
 
     def onchange_emp_status(self):
         if self.resigned and self.employee_id:
@@ -514,14 +533,14 @@ class HRContract(models.Model):
                                    'Earner Type', compute='_compute_min_wage', store=True)
     job_title_move = fields.One2many('hr.job.move', 'contract_id', 'Job Title Movement')
     salary_move = fields.One2many('hr.salary.move', 'contract_id', 'Salary Movement')
-    average_working_days = fields.Float('Average Working Days', default=0)
-    avg_wrk_days_id = fields.Many2one('hr.avg_wrk_days.config', string="Average Working Days")
+    average_working_days = fields.Float('Average Working Days')
+    avg_wrk_days_id = fields.Many2one('hr.avg_wrk_days.config', string="Average Working Days", compute="_compute_awd")
     # temporary storage for onchange values
     hdmf_contrib_upgrade = fields.Boolean(string="HDMF Upgrade")
     hdmf_amount_upgraded = fields.Float(string="HDMF Amount")
     old_wage = fields.Float("Old Salary")
-    new_salary_date = fields.Date('New Salary Date')
-    temp_wage = fields.Float('Wage')
+    new_salary_date = fields.Date('New Salary Date', compute="_compute_awd")
+    temp_wage = fields.Float('Wage', compute="_compute_awd")
     temp_job_id = fields.Many2one('hr.job', 'Job')
     temp_struct_id = fields.Many2one('hr.payroll.structure', 'Salary Structure')
 
@@ -562,9 +581,9 @@ class HRSalaryMove(models.Model):
     @api.depends('amount', 'average_working_days')
     def _compute_rate(self):
         for record in self:
-            if record.average_working_days > 0:
-                record.daily_rate = record.amount / record.average_working_days
-                record.hourly_rate = (record.amount / record.average_working_days) / 8.0
+            if record.contract_id.average_working_days > 0:
+                record.daily_rate = record.amount / record.contract_id.average_working_days
+                record.hourly_rate = record.daily_rate / 8.0
 
     @api.constrains('date_start', 'date_end')
     def _check_validity(self):
@@ -615,7 +634,7 @@ class HRSalaryMove(models.Model):
     date_start = fields.Date('Date Start', required=True)
     date_end = fields.Date('Date End')
     contract_id = fields.Many2one('hr.contract', 'Contract')
-    average_working_days = fields.Float('Average Working Days', default=0)
+    average_working_days = fields.Float('Average Working Days')
     daily_rate = fields.Float('Daily Rate', compute='_compute_rate')
     hourly_rate = fields.Float('Hourly Rate', compute='_compute_rate')
 
