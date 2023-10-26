@@ -428,22 +428,26 @@ class HRContract(models.Model):
             self.salary_move.average_working_days = self.avg_wrk_days_id.name
 
     # Insert data when importing from the csv file 
-    @api.depends('avg_wrk_days_id', 'average_working_days', 'wage', 'new_salary_date')
+    @api.depends('avg_wrk_days_id', 'average_working_days', 'wage', 'new_salary_date', 'salary_move')
     def _compute_awd(self):
         for record in self:
             if record.average_working_days > 0:
-                existing_avg_wrk_days = self.env['hr.avg_wrk_days.config'].search([('name', '=', record.average_working_days)], limit=1)
-                if existing_avg_wrk_days:
-                    record.avg_wrk_days_id = existing_avg_wrk_days
-                    record.wage = record.salary_move.amount
-                    record.new_salary_date = record.salary_move.date_start
-                else:
-                    new_avg_wrk_days = self.env['hr.avg_wrk_days.config'].create({
-                        'name': record.average_working_days,
-                    })
-                    record.avg_wrk_days_id = new_avg_wrk_days
-                    record.wage = record.salary_move.amount
-                    record.new_salary_date = record.salary_move.date_start
+                salary_move = record.salary_move and record.salary_move[0]
+                if salary_move:
+                    existing_avg_wrk_days = self.env['hr.avg_wrk_days.config'].search([
+                        ('name', '=', record.average_working_days)
+                    ], limit=1)
+                    if existing_avg_wrk_days:
+                        record.avg_wrk_days_id = existing_avg_wrk_days
+                        record.wage = salary_move.amount
+                        record.new_salary_date = salary_move.date_start
+                    else:
+                        new_avg_wrk_days = self.env['hr.avg_wrk_days.config'].create({
+                            'name': record.average_working_days,
+                        })
+                        record.avg_wrk_days_id = new_avg_wrk_days
+                        record.wage = salary_move.amount
+                        record.new_salary_date = salary_move.date_start
 
     def onchange_emp_status(self):
         if self.resigned and self.employee_id:
