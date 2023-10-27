@@ -5,7 +5,7 @@
   		<template id="report_payslipdetails_template_two">
 	        <t t-call="report.html_container">
 	          	<t t-foreach="docs" t-as="o">
-	                <t t-call="report.external_layout">
+	                <!-- <t t-call="report.external_layout"> -->
 	                    <div class="page">
 	                        <style>
 	
@@ -134,9 +134,9 @@
 	                    <t t-set="deductions" t-value="result"/>
 	                    <div class="container-fluid" id="payslip-border">
 	                        <div class="row">
-	                            <div class="col-xs-3" style="margin-left:5px;">
+	                            <div class="col-md-9" style="margin-left:5px;">
 	                                <img t-if="o.id_company.logo" t-att-src="'data:image/png;base64,%s' %o.id_company.logo" width="60px" height="60px"/>
-	                                <b><p id="header"><span t-field="o.id_company"/></p></b>
+									<b><p id="header"><span t-field="o.employee_id.id_company"/></p></b>
 	                            </div>
 	  
 	                        </div>
@@ -383,7 +383,7 @@
 	                                       <td>___________________________________</td>
 	                                   </tr>
 	                                   <tr>
-	                                       <td class="text-center"><b><h4><span t-field="o.company_id"/></h4></b></td>
+	                                       <td class="text-center"><b><h4><span t-field="o.employee_id.id_company"/></h4></b></td>
 	                                   </tr>
 	                                </table>
 	                                </center>
@@ -391,7 +391,7 @@
 	                          </div>
 	                      </div>
 	                  </div>
-	          		</t>
+	          		<!-- </t> -->
         		</t>
       		</t>
     	</template>
