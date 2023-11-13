@@ -56,7 +56,7 @@ class HRPHIC(models.TransientModel):
 
         for employee in self.employee_ids:
             payslip = self.env['hr.payslip'].search(
-                [('employee_id', '=', employee.id), ('credit_note', '=', False),('date_from', '<=', self.date_from),('date_to', '>=', self.date_to), ('state', 'in', ['draft', 'done'])])
+                [('employee_id', '=', employee.id), ('credit_note', '=', False),('date_from', '>=', self.date_from),('date_to', '<=', self.date_to), ('state', 'in', ['draft', 'done'])])
 
             line_ee = self.env['hr.payslip.line']
             line_er = self.env['hr.payslip.line']
