@@ -222,8 +222,8 @@ class HRContract(models.Model):
         self.wage = res and res[0] or 0
         self.old_wage = len(res) > 1 and res[1] or 0
         self.temp_wage = res and res[0] or 0
-        if self.salary_move and not self.average_working_days:
-            raise ValidationError(_("Please Enter Average Working Days!!"))
+        if self.salary_move and not self.avg_wrk_days_id:
+            raise ValidationError(_("Please Enter Average Working Days!"))
         if self.temp_wage > 0:
             rate = self.wage / self.average_working_days
             location_id = self.employee_id.work_location_id.id
@@ -423,12 +423,16 @@ class HRContract(models.Model):
 
     @api.onchange('avg_wrk_days_id')
     def onchange_awd(self):
-        if self.avg_wrk_days_id:
-            self.avg_wrk_days_id.name = self.average_working_days
-            self.salary_move.average_working_days = self.avg_wrk_days_id.name
+        for rec in self:
+            if rec.avg_wrk_days_id:
+                rec.average_working_days = rec.avg_wrk_days_id.name
+                salary_move = rec.salary_move and rec.salary_move[0]
+                if salary_move:  # Check if salary_move exists
+                    # Assuming 'average_working_days' is a field in 'hr.salary.move'
+                    salary_move.write({'average_working_days': rec.average_working_days})
 
     # Insert data when importing from the csv file 
-    @api.depends('avg_wrk_days_id', 'average_working_days', 'wage', 'new_salary_date', 'salary_move')
+    @api.depends('average_working_days', 'wage', 'new_salary_date', 'salary_move', 'temp_wage')
     def _compute_awd(self):
         for record in self:
             if record.average_working_days > 0:
@@ -538,7 +542,7 @@ class HRContract(models.Model):
     job_title_move = fields.One2many('hr.job.move', 'contract_id', 'Job Title Movement')
     salary_move = fields.One2many('hr.salary.move', 'contract_id', 'Salary Movement')
     average_working_days = fields.Float('Average Working Days')
-    avg_wrk_days_id = fields.Many2one('hr.avg_wrk_days.config', string="Average Working Days", compute="_compute_awd")
+    avg_wrk_days_id = fields.Many2one('hr.avg_wrk_days.config', string="Average Working Days")
     # temporary storage for onchange values
     hdmf_contrib_upgrade = fields.Boolean(string="HDMF Upgrade")
     hdmf_amount_upgraded = fields.Float(string="HDMF Amount")
