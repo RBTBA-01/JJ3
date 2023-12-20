@@ -801,9 +801,8 @@ class HRAttendance(models.Model):
                 break_period_hour, break_period_minute = float_time_convert(attendance.work_time_line_id.break_period)
                 lunch_break_period = lunch_break_out + timedelta(hours=break_period_hour, minutes=break_period_minute,
                                                                  seconds=0)
-
-                if schedule_type == 'flexible':
-                    attendance.undertime_hours = 0
+                if schedule_type == "flexible" and attendance.worked_hours <= 8:
+                    attendance.undertime_hours = 8 - attendance.worked_hours
 
                 if schedule_type in ('normal', 'coretime'):
                     if attendance.leave_ids:
@@ -884,11 +883,16 @@ class HRAttendance(models.Model):
 #         date_out = context_timestamp(self, from_string(date_out))
         # Change actual check in and check out
         worktime_line = attendance.work_time_line_id
+        schedule_type = attendance.work_time_line_id.work_time_id.schedule_type
         if attendance.request_change_id and attendance.request_change_id.state == 'approved':
             if attendance.temp_in and attendance.temp_out:
                 date_in = context_timestamp(self, from_string(attendance.temp_in))
                 date_out = context_timestamp(self, from_string(attendance.temp_out))
-
+        if schedule_type == "flexible":
+            # required_in = date_in
+            schedule_in = date_in
+        #     required_out = date_in + timedelta(hours=worktime_line.time_to_render)
+            schedule_out = date_in + timedelta(hours=worktime_line.time_to_render)
         # Not considering the seconds
         date_in = date_in.replace(second=0)
         date_out = date_out.replace(second=0)
@@ -1471,6 +1475,14 @@ class HRAttendance(models.Model):
                     required_in = date_in
                 if date_in >= latest_in:
                     required_in = latest_in
+            ######################
+            if schedule_type == 'flexible':
+                earliest_in_hour, earliest_in_minute = float_time_convert(attendance.work_time_line_id.earliest_check_in)
+                earliest_in = date_in.replace(hour=earliest_in_hour, minute=earliest_in_minute, second=0)
+                latest_in_hour, latest_in_minute = float_time_convert(attendance.work_time_line_id.latest_check_in)
+                latest_in = date_in.replace(hour=latest_in_hour, minute=latest_in_minute, second=0)
+                required_in = date_in
+            ####################
             if attendance.reg_holiday_ids or attendance.spl_holiday_ids:
                 holidays = attendance.reg_holiday_ids + attendance.spl_holiday_ids
                 holiday_start = (context_timestamp(self, from_string(min(holidays.mapped('holiday_start'))))).replace(second=0)
@@ -1632,10 +1644,12 @@ class HRAttendance(models.Model):
                         leave_wp_hours += leave_hours['leave_wp_hours']
                         leave_wop_hours += leave_hours['leave_wop_hours']
                         worked_leave_hours = leave_hours['worked_hours']
+                        leave_total = leave_wop_hours + leave_wp_hours
                     attendance.leave_hours = leave_wp_hours > 0 and leave_wp_hours or 0
                     attendance.leave_wop_hours = leave_wop_hours > 0 and leave_wop_hours or 0
                     if not attendance.is_absent and not attendance.is_holiday and not attendance.is_leave and not attendance.is_ob:
-                        hours = worked_leave_hours - ob_hours
+                        # hours = worked_leave_hours - ob_hours
+                        hours = worked_leave_hours
                         attendance.worked_hours = hours > 0 and hours or 0
                         attendance.absent_hours = 0
             """Overtime Calculation"""
@@ -1775,87 +1789,143 @@ class HRAttendance(models.Model):
                 attendance.absent_hours = attendance._validate_holidays(schedule_week_days)
     # FOR REFRACTORING
 
-    def calculate_leave_hours(self, leave, lunch_break, lunch_break_period,
-                              date_in, date_out, required_in, required_out, worked_hours):
+#     def calculate_leave_hours(self, leave, lunch_break, lunch_break_period, date_in, date_out, required_in, required_out, worked_hours):
+#         leave_hours = 0
+#         worked_leave_hours = 0
+#         leave_wp_hours = 0
+#         leave_wop_hours = 0
+# #         leave = self.leave_ids.filtered(lambda l: not l.holiday_status_id.is_ob)
+#         date_from = (context_timestamp(self, from_string(leave.date_from))).replace(second=0)
+#         date_to = (context_timestamp(self, from_string(leave.date_to))).replace(second=0)
+# #         leave_hours = (date_out - date_in).total_seconds() / 3600.0
+#         if date_in >= required_out or date_out <= required_in or self.is_absent or self.is_suspended or self.is_leave:
+#         # if date_in >= required_out or date_out <= required_in or self.is_absent or self.is_suspended:
+#             date_in = required_in
+#             date_out = required_out
+#         if self.work_time_line_id.break_period:
+#             if date_in < lunch_break:
+#                 worked_leave_hours += (min([lunch_break, date_out]) - max([required_in, date_in])).total_seconds() / 3600.0
+#                 leaves = (min([lunch_break, date_to, date_out]) - max([required_in, date_from, date_in])).total_seconds() / 3600.0
+#                 if leaves > 0:
+#                     worked_leave_hours -= leaves
+
+#             if lunch_break_period < required_out and date_out > lunch_break_period:
+#                 worked_leave_hours += (min([required_out, date_out]) - max([lunch_break_period, required_in, date_in])).total_seconds() / 3600.0
+#                 leaves = (min([required_out, date_to, date_out]) - max([lunch_break_period, date_from, required_in, date_in])).total_seconds() / 3600.0
+#                 if leaves > 0:
+#                     worked_leave_hours -= leaves
+
+#             if date_in > lunch_break_period and date_in < required_out:
+#                 worked_leave_hours = (min([required_out, date_out]) - max([lunch_break_period, date_in])).total_seconds() / 3600.0
+
+#             if lunch_break <= date_in <= lunch_break_period:
+#                 worked_leave_hours = (min([date_out, required_out]) - max([date_in, lunch_break_period])).total_seconds() / 3600.0
+#                 leaves = (min([date_out, date_to, required_out]) - max([date_in, date_from, lunch_break_period])).total_seconds() / 3600.0
+#                 if leaves > 0:
+#                     worked_leave_hours -= leaves
+
+#             if lunch_break <= date_in <= date_out <= lunch_break_period or date_from <= date_in <= date_out <= date_to:
+#                 worked_leave_hours = 0
+
+#             if date_from == date_to or (date_to - timedelta(hours=9)) == date_from:
+#                 if date_from < lunch_break:
+#                     leave_hours += (min([lunch_break, date_to]) - max([required_in, date_from])).total_seconds() / 3600.0
+#                 if lunch_break_period < required_out and date_to > lunch_break_period:
+#                     leave_hours += (min([date_to, required_out]) - max([lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
+#                 if lunch_break <= date_from <= lunch_break_period:
+#                     leave_hours = (min([date_to, required_out]) - max([date_from, lunch_break_period])).total_seconds() / 3600.0
+#                 if lunch_break <= date_from <= date_to <= lunch_break_period:
+#                     leave_hours = 0
+#             else:
+#                 leaves_duration = (date_to - date_from)
+#                 leave_days = (leaves_duration).days + float(leaves_duration.seconds) / 28800
+#                 # leave_hours = round(leave_days) * 8.0
+
+#         else:
+#             worked_leave_hours = (min([required_out, date_out]) - max([required_in, date_in])).total_seconds() / 3600.0
+#             leave_hours += (min([required_out, date_to]) - max([required_in, date_from])).total_seconds() / 3600.0
+#         # Added code - start marker
+#         """COMPUTE LWP in Attendances Module"""
+#         if leave.holiday_status_id.leave_remarks == 'wp' and not leave.holiday_status_id.is_ob:
+#             leave_wp_hours += leave_hours
+#         # Added code - end marker
+#         elif leave.holiday_status_id.leave_remarks == 'wop' and not leave.holiday_status_id.is_ob:
+#             leave_wop_hours += leave_hours
+
+#         """Regular Hours Calculation"""
+#         if worked_hours:
+#             worked_hours -= leave_wp_hours - leave_wop_hours
+#         else:
+#             worked_hours = worked_leave_hours
+#         # return {'worked_hours': worked_hours, 'leave_wp_hours': leave_wp_hours, 'leave_wop_hours': leave_wop_hours}
+#         raise ValidationError("worked_hours: %s, leave_wp_hours: %s, leave_wop_hours: %s" % (worked_hours, leave_wp_hours, leave_wop_hours))
+
+    def calculate_leave_hours(self, leave, lunch_break, lunch_break_period, date_in, date_out, required_in, required_out, worked_hours):
         leave_hours = 0
         worked_leave_hours = 0
         leave_wp_hours = 0
         leave_wop_hours = 0
-#         leave = self.leave_ids.filtered(lambda l: not l.holiday_status_id.is_ob)
-        date_from = (context_timestamp(self, from_string(leave.date_from))).replace(second=0)
-        date_to = (context_timestamp(self, from_string(leave.date_to))).replace(second=0)
-#         leave_hours = (date_out - date_in).total_seconds() / 3600.0
+        leave = self.leave_ids.filtered(lambda l: not l.holiday_status_id.is_ob)
+        def calculate_hours(start, end, interval_start, interval_end):
+            return (min(end, interval_end) - max(start, interval_start)).total_seconds() / 3600.0
+
+        date_from = context_timestamp(self, from_string(leave.date_from)).replace(second=0)
+        date_to = context_timestamp(self, from_string(leave.date_to)).replace(second=0)
+
         if date_in >= required_out or date_out <= required_in or self.is_absent or self.is_suspended or self.is_leave:
             date_in = required_in
             date_out = required_out
-        if self.work_time_line_id.break_period:
-            if date_in < lunch_break:
-                worked_leave_hours += (min([lunch_break, date_out]) - max(
-                    [required_in, date_in])).total_seconds() / 3600.0
-                leaves = (min([lunch_break, date_to, date_out]) - max(
-                    [required_in, date_from, date_in])).total_seconds() / 3600.0
+
+        if self.work_time_line_id:
+            if (date_in < date_out <= lunch_break):
+                worked_leave_hours = calculate_hours(date_in,date_out, required_in, lunch_break)
+
+            if (date_in < lunch_break <= date_out <= lunch_break_period < required_out):
+                worked_leave_hours = calculate_hours(date_in, date_out, required_in, date_out)
+                # worked_leave_hours = 1
+
+            if (lunch_break < lunch_break_period <= date_in < date_out <= required_out):
+                worked_leave_hours = calculate_hours(date_in, date_out, lunch_break_period, required_out)
+                # worked_leave_hours = 2
+
+            if (lunch_break <= date_in < lunch_break_period):
+                worked_leave_hours = calculate_hours(date_in, min(required_out, date_out), lunch_break_period, date_in)
+                leaves = calculate_hours(date_in, min(date_to, required_out), lunch_break_period, date_from)
                 if leaves > 0:
                     worked_leave_hours -= leaves
 
-            if lunch_break_period < required_out and date_out > lunch_break_period:
-                worked_leave_hours += (min([required_out, date_out]) - max(
-                    [lunch_break_period, required_in, date_in])).total_seconds() / 3600.0
-                leaves = (min([required_out, date_to, date_out]) - max(
-                    [lunch_break_period, date_from, required_in, date_in])).total_seconds() / 3600.0
-                if leaves > 0:
-                    worked_leave_hours -= leaves
-
-            if date_in > lunch_break_period and date_in < required_out:
-                worked_leave_hours = (min([required_out, date_out]) - max(
-                    [lunch_break_period, date_in])).total_seconds() / 3600.0
-
-            if lunch_break <= date_in <= lunch_break_period:
-                worked_leave_hours = (min([date_out, required_out]) - max(
-                    [date_in, lunch_break_period])).total_seconds() / 3600.0
-                leaves = (min([date_out, date_to, required_out]) - max(
-                    [date_in, date_from, lunch_break_period])).total_seconds() / 3600.0
-                if leaves > 0:
-                    worked_leave_hours -= leaves
-
-            if lunch_break <= date_in <= date_out <= lunch_break_period or \
-                    date_from <= date_in <= date_out <= date_to:
+            if lunch_break <= date_in <= date_out <= lunch_break_period or date_from <= date_in <= date_out <= date_to:
                 worked_leave_hours = 0
 
-            if date_from == date_to or (date_to - timedelta(hours=9)) == date_from:
+            if date_from.day == date_to.day or (date_to - timedelta(hours=9)) == date_from:
                 if date_from < lunch_break:
-                    leave_hours += (min([lunch_break, date_to]) - max(
-                        [required_in, date_from])).total_seconds() / 3600.0
-                if lunch_break_period < required_out and date_to > lunch_break_period:
-                    leave_hours += (min([date_to, required_out]) - max(
-                        [lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
+                    # leave_hours += (min([lunch_break, date_to]) - max([required_in, date_from])).total_seconds() / 3600.0
+                    leave_hours += (min([lunch_break, date_to]) - max([required_in, date_from])).total_seconds() / 3600.0
+                if lunch_break_period < date_to <= required_out:
+                    # leave_hours += (min([date_to, required_out]) - max([lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
+                    leave_hours += (min([date_to, required_out]) - max([lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
                 if lunch_break <= date_from <= lunch_break_period:
-                    leave_hours = (min([date_to, required_out]) - max(
-                        [date_from, lunch_break_period])).total_seconds() / 3600.0
+                    leave_hours = (min([date_to, required_out]) - max([date_from, lunch_break_period])).total_seconds() / 3600.0
                 if lunch_break <= date_from <= date_to <= lunch_break_period:
                     leave_hours = 0
             else:
                 leaves_duration = (date_to - date_from)
                 leave_days = (leaves_duration).days + float(leaves_duration.seconds) / 28800
                 leave_hours = round(leave_days) * 8.0
-
         else:
-            worked_leave_hours = (min([required_out, date_out]) - max(
-                [required_in, date_in])).total_seconds() / 3600.0
-            leave_hours += (min([required_out, date_to]) - max(
-                [required_in, date_from])).total_seconds() / 3600.0
-        # Added code - start marker
-        """COMPUTE LWP in Attendances Module"""
+            worked_leave_hours = calculate_hours(date_in, date_out, required_in, required_out)
+            leave_hours = calculate_hours(date_from, date_to, required_in, required_out)
+
         if leave.holiday_status_id.leave_remarks == 'wp' and not leave.holiday_status_id.is_ob:
             leave_wp_hours += leave_hours
-        # Added code - end marker
         elif leave.holiday_status_id.leave_remarks == 'wop' and not leave.holiday_status_id.is_ob:
             leave_wop_hours += leave_hours
 
-        """Regular Hours Calculation"""
-        if worked_hours:
-            worked_hours -= leave_wp_hours - leave_wop_hours
-        else:
-            worked_hours = worked_leave_hours
+        # if worked_hours:
+        #     # worked_hours -= leave_wp_hours - leave_wop_hours
+        # else:
+        worked_hours = worked_leave_hours
+        # raise ValidationError("worked_hours: %s, leave_wp_hours: %s, leave_wop_hours: %s" % (worked_hours, leave_wp_hours, leave_wop_hours))
         return {'worked_hours': worked_hours, 'leave_wp_hours': leave_wp_hours, 'leave_wop_hours': leave_wop_hours}
 
     def calculate_holiday_hours(self):
