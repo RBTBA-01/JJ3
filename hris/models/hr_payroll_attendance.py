@@ -405,24 +405,33 @@ class HRAttendance(models.Model):
             overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
 
         if rest_day:
-            check_in = fields.Datetime.from_string(self.check_in)
-            check_out = fields.Datetime.from_string(self.check_out)
-            duration = (check_out - check_in).total_seconds() / 3600.0
-            if duration > 8:
+            # check_in = fields.Datetime.from_string(self.check_in)
+            # check_out = fields.Datetime.from_string(self.check_out)
+            # duration = (check_out - check_in).total_seconds() / 3600.0
+            date_in = from_string(self.check_in).strftime('%Y-%m-%d %H:%M')
+            date_out = from_string(self.check_out).strftime('%Y-%m-%d %H:%M')
+            domain = [('employee_id', '=', self.employee_id.id),
+                  ('start_time', '>=', date_out),
+                  ('start_time', '>=', date_in),
+                  ('state', '=', 'approved')]
+            overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
+            # if duration > 8:
+            if overtime.hours_requested > 8:
                 # If the duration is exceeds 8 hours, set rest_day_hours to 8 hours
                 self.rest_day_hours = 8
+                self.rest_day_ot_hours = overtime.hours_requested - self.rest_day_hours
             else:
                 # If the duration is 8 hours or less, set rest_day_hours to the actual duration
-                self.rest_day_hours = duration
-
+                self.rest_day_hours = overtime.hours_requested
+                self.rest_day_ot_hours = overtime.hours_requested - self.rest_day_hours
             self.remarks = 'RD'
             # Only set the rest day overtime if it's rest day
-            if overtime:
-                self.rest_day_ot_hours = overtime.hours_requested
+            # if overtime:
+            #     self.rest_day_ot_hours = overtime.hours_requested
         else:
             # Only set the self.overtime_id if it's not rest day
             self.overtime_id = overtime.id
-
+        
     def convert_date(self, date_leave):
         date_time_leaves = datetime.strptime(date_leave, '%Y-%m-%d %H:%M:%S')
         return to_string(context_utc(from_string(to_string(date_time_leaves)), self.env.user.tz))
@@ -801,8 +810,8 @@ class HRAttendance(models.Model):
                 break_period_hour, break_period_minute = float_time_convert(attendance.work_time_line_id.break_period)
                 lunch_break_period = lunch_break_out + timedelta(hours=break_period_hour, minutes=break_period_minute,
                                                                  seconds=0)
-                if schedule_type == "flexible" and attendance.worked_hours <= 8:
-                    attendance.undertime_hours = 8 - attendance.worked_hours
+                if schedule_type == "flexible" and ((attendance.worked_hours or attendance.ob_hours or attendance.leave_hours or attendance.leave_wop_hours) <= 8 ) :
+                    attendance.undertime_hours = 8 - (attendance.worked_hours or attendance.ob_hours or attendance.leave_hours or attendance.leave_wop_hours)
 
                 if schedule_type in ('normal', 'coretime'):
                     if attendance.leave_ids:
@@ -1337,7 +1346,7 @@ class HRAttendance(models.Model):
                 attendance.schedule_in = to_string(context_utc(from_string(to_string(schedule_in_date)), self.env.user.tz))
                 attendance.schedule_out = to_string(context_utc(from_string(to_string(schedule_out_date)), self.env.user.tz))
 
-    def get_ob_hours(self, date_in=None, date_out=None, required_in=None, required_out=None, break_time=0,
+    def get_ob_hours(self, date_in, date_out, required_in, required_out, break_time=0,
                      lunch_break=False, lunch_break_period=False):
         if not date_out or not date_in or not required_in or not required_out:
             return 0
@@ -1477,11 +1486,12 @@ class HRAttendance(models.Model):
                     required_in = latest_in
             ######################
             if schedule_type == 'flexible':
-                earliest_in_hour, earliest_in_minute = float_time_convert(attendance.work_time_line_id.earliest_check_in)
-                earliest_in = date_in.replace(hour=earliest_in_hour, minute=earliest_in_minute, second=0)
-                latest_in_hour, latest_in_minute = float_time_convert(attendance.work_time_line_id.latest_check_in)
-                latest_in = date_in.replace(hour=latest_in_hour, minute=latest_in_minute, second=0)
+                # earliest_in_hour, earliest_in_minute = float_time_convert(attendance.work_time_line_id.earliest_check_in)
+                # earliest_in = date_in.replace(hour=earliest_in_hour, minute=earliest_in_minute, second=0)
+                # latest_in_hour, latest_in_minute = float_time_convert(attendance.work_time_line_id.latest_check_in)
+                # latest_in = date_in.replace(hour=latest_in_hour, minute=latest_in_minute, second=0)
                 required_in = date_in
+                required_out = date_in + timedelta(hours=TIME_TO_RENDER)
             ####################
             if attendance.reg_holiday_ids or attendance.spl_holiday_ids:
                 holidays = attendance.reg_holiday_ids + attendance.spl_holiday_ids
@@ -1654,7 +1664,7 @@ class HRAttendance(models.Model):
                         attendance.absent_hours = 0
             """Overtime Calculation"""
             min_overtime_hours = float(self.env['ir.config_parameter'].get_param('minimum.overtime.hours', '1'))
-            if attendance.overtime_id and attendance.overtime_id.state == 'approved':
+            if attendance.overtime_id and attendance.overtime_id.state == 'approved' and attendance.work_time_line_id:
                 date_in = (context_timestamp(self, from_string(attendance.check_in))).replace(second=0)
                 date_out = (context_timestamp(self, from_string(attendance.check_out))).replace(second=0)
                 if attendance.leave_ids and ob_leaves:
@@ -1687,6 +1697,8 @@ class HRAttendance(models.Model):
                         overtime_hours = (midnight - max_start).total_seconds() / 3600.0
                     elif not attendance.work_time_line_id:
                         restday_overtime_before = overtime
+                        # restday_overtime = overtime
+                        # attendance.rest_day_ot_hours = overtime_end_time - overtime_start_time
                     # if not overtime_start_time.strftime('%A').lower() in schedule_week_days:
                     #     restday_overtime_before = (midnight - max_start).total_seconds() / 3600.0
                     #     overtime_hours = (min_end - midnight).total_seconds() / 3600.0
@@ -1888,11 +1900,11 @@ class HRAttendance(models.Model):
                 worked_leave_hours = calculate_hours(date_in, date_out, lunch_break_period, required_out)
                 # worked_leave_hours = 2
 
-            if (lunch_break <= date_in < lunch_break_period):
-                worked_leave_hours = calculate_hours(date_in, min(required_out, date_out), lunch_break_period, date_in)
-                leaves = calculate_hours(date_in, min(date_to, required_out), lunch_break_period, date_from)
-                if leaves > 0:
-                    worked_leave_hours -= leaves
+            if (lunch_break <= date_in < lunch_break_period < date_out):
+                worked_leave_hours = calculate_hours(date_in,date_out, lunch_break_period, required_out)
+                # leaves = calculate_hours(date_in, min(date_to, required_out), lunch_break_period, date_from)
+                # if leaves > 0:
+                #     worked_leave_hours -= leaves
 
             if lunch_break <= date_in <= date_out <= lunch_break_period or date_from <= date_in <= date_out <= date_to:
                 worked_leave_hours = 0
