@@ -446,7 +446,9 @@ class HRAttendance(models.Model):
             ('type', '=', 'remove'),
             ('process_type', '=', False)
         ]
-
+        if self.work_time_line_id.work_time_id.schedule_type == 'flexible':
+            domain = [('date_from', '>=', self.check_in),('date_to', '<=', self.check_out),('employee_id', '=', self.employee_id.id),('state', 'in',('validate', 'validate1')),('type', '=', 'remove'),('process_type', '=', False)]
+            # leaves = self.env['hr.holidays'].search(domain)
         leaves = self.env['hr.holidays'].search(domain)
 
         TIME_TO_RENDER = self.work_time_line_id.time_to_render - self.work_time_line_id.break_period
@@ -868,6 +870,7 @@ class HRAttendance(models.Model):
         date_out = context_timestamp(self, from_string(attendance.check_out))
 
         worktime_line = attendance.work_time_line_id
+        schedule_type = attendance.work_time_line_id.work_time_id.schedule_type
         schedule_in_hour, schedule_in_minute = float_time_convert(worktime_line.latest_check_in)
         schedule_out_hour, schedule_out_minute = float_time_convert(worktime_line.time_to_render)
 
@@ -891,6 +894,7 @@ class HRAttendance(models.Model):
             date_to = leave_date_out and max([context_timestamp(self, from_string(x)) for x in leave_date_out]) or date_out
             check_in.append(date_from)
             check_out.append(date_to)
+
 #             for leave in ob_leaves:
 #                 date_from = context_timestamp(self, from_string(leave.date_from))
 #                 date_to = context_timestamp(self, from_string(leave.date_to))
@@ -900,26 +904,41 @@ class HRAttendance(models.Model):
 # #                     date_to = min([date_out, schedule_out])
 #                 check_in.append(date_from)
 #                 check_out.append(date_to)
-            date_in = min(check_in)
-            date_out = max(check_out)
+#             date_in = min(check_in)
+#             date_out = max(check_out)
 #         date_in = context_timestamp(self, from_string(date_in))
 #         date_out = context_timestamp(self, from_string(date_out))
-        # Change actual check in and check out
+#         Change actual check in and check out
         worktime_line = attendance.work_time_line_id
-        schedule_type = attendance.work_time_line_id.work_time_id.schedule_type
         if attendance.request_change_id and attendance.request_change_id.state == 'approved':
             if attendance.temp_in and attendance.temp_out:
                 date_in = context_timestamp(self, from_string(attendance.temp_in))
                 date_out = context_timestamp(self, from_string(attendance.temp_out))
         if schedule_type == "flexible":
-            # required_in = date_in
-            schedule_in = date_in
-        #     required_out = date_in + timedelta(hours=worktime_line.time_to_render)
-            schedule_out = date_in + timedelta(hours=worktime_line.time_to_render)
-        # Not considering the seconds
-        date_in = date_in.replace(second=0)
-        date_out = date_out.replace(second=0)
-
+            if attendance.leave_ids and ob_leaves:
+                if attendance.is_hide_check_time:
+                    check_in = []
+                    check_out = []
+                else:
+                    # check_in = [max([date_in, schedule_in])]
+                    # check_out = [min([date_out, schedule_out])]
+                    check_in = date_in
+                    check_out = date_out
+                leave_date_in = ob_leaves.filtered(lambda l: context_timestamp(self, from_string(l.date_to)).day == check_out.day).mapped('date_from')
+                leave_date_out = ob_leaves.filtered(lambda l: context_timestamp(self, from_string(l.date_from)).day == check_in.day).mapped('date_to')
+                date_from = leave_date_in and min([context_timestamp(self, from_string(x)) for x in leave_date_in]) or date_in
+                date_to = leave_date_out and max([context_timestamp(self, from_string(x)) for x in leave_date_out]) or date_out
+                schedule_in = date_from
+                schedule_out = schedule_in + timedelta(hours=worktime_line.time_to_render)
+                check_in = date_from
+                check_out = date_to
+            else:
+                schedule_in = date_in
+                schedule_out = date_in + timedelta(hours=worktime_line.time_to_render)
+                date_in = date_in.replace(second=0)
+        
+                date_out = date_out.replace(second=0)
+    
         if not worktime_line:
             rendered_hours = 0
             return rendered_hours
@@ -931,6 +950,7 @@ class HRAttendance(models.Model):
         required_in = date_in.replace(hour=22, minute=0, second=0)
         required_in = get_intersection(date_in, date_out, required_in, 8)
 
+
         required_in = get_intersection(schedule_in, date_out, required_in, attendance.work_time_line_id.time_to_render)
         required_out_hour, required_out_minute = float_time_convert(attendance.work_time_line_id.time_to_render)
 
@@ -939,6 +959,8 @@ class HRAttendance(models.Model):
 
         NIGHT_DIFF_START = required_in
         NIGHT_DIFF_END = required_in + timedelta(hours=8)
+        night_diff_start_off = NIGHT_DIFF_START.replace(hour=23, minute=0, second=0).strftime('%H:%M')
+        night_diff_endd_off = NIGHT_DIFF_END.replace(hour=6, minute=0, second=0).strftime('%H:%M')
 
         # GET THE HOURS AND MINUTES FORMAT
         ndiff_start_time = NIGHT_DIFF_START.strftime('%H:%M')
@@ -989,6 +1011,7 @@ class HRAttendance(models.Model):
         if ((date_out - date_in).total_seconds() / 3600.0) < 0.25:
             rendered_hours = 0
         return rendered_hours
+
 
     @api.depends('employee_id', 'check_in', 'check_out', 'leave_ids',
                  'leave_ids.date_from', 'leave_ids.date_to', 'leave_ids.state',
