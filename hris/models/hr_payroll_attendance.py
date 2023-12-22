@@ -401,6 +401,11 @@ class HRAttendance(models.Model):
                       ('start_time', '<=', date_out),
                       ('start_time', '>=', date_in),
                       ('state', '=', 'approved')]
+            if self.work_time_line_id.work_time_id.schedule_type == 'flexible':
+                 domain = [('employee_id', '=', self.employee_id.id),
+                      ('start_time', '<=', date_out),
+                      ('start_time', '>=', date_in),
+                      ('state', '=', 'approved')]
 
             overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
 
@@ -410,11 +415,11 @@ class HRAttendance(models.Model):
             # duration = (check_out - check_in).total_seconds() / 3600.0
             date_in = from_string(self.check_in).strftime('%Y-%m-%d %H:%M')
             date_out = from_string(self.check_out).strftime('%Y-%m-%d %H:%M')
-            domain = [('employee_id', '=', self.employee_id.id),
-                  ('start_time', '>=', date_out),
-                  ('start_time', '>=', date_in),
-                  ('state', '=', 'approved')]
-            overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
+            # domain = [('employee_id', '=', self.employee_id.id),
+            #       ('start_time', '<=', date_out),
+            #       ('start_time', '>=', date_in),
+            #       ('state', '=', 'approved')]
+            # overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
             # if duration > 8:
             if overtime.hours_requested > 8:
                 # If the duration is exceeds 8 hours, set rest_day_hours to 8 hours
@@ -447,7 +452,7 @@ class HRAttendance(models.Model):
             ('process_type', '=', False)
         ]
         if self.work_time_line_id.work_time_id.schedule_type == 'flexible':
-            domain = [('date_from', '>=', self.check_in),('date_to', '<=', self.check_out),('employee_id', '=', self.employee_id.id),('state', 'in',('validate', 'validate1')),('type', '=', 'remove'),('process_type', '=', False)]
+            domain = [('date_from', '<=', self.check_in),('date_to', '>=', self.check_out),('employee_id', '=', self.employee_id.id),('state', 'in',('validate', 'validate1')),('type', '=', 'remove'),('process_type', '=', False)]
             # leaves = self.env['hr.holidays'].search(domain)
         leaves = self.env['hr.holidays'].search(domain)
 
@@ -1383,7 +1388,7 @@ class HRAttendance(models.Model):
                 attendance.schedule_in = to_string(context_utc(from_string(to_string(schedule_in_date)), self.env.user.tz))
                 attendance.schedule_out = to_string(context_utc(from_string(to_string(schedule_out_date)), self.env.user.tz))
 
-    def get_ob_hours(self, date_in, date_out, required_in, required_out, break_time=0,lunch_break=False, lunch_break_period=False):
+    def get_ob_hours(self, date_in=False, date_out=False, required_in=False, required_out=False, break_time=0,lunch_break=False, lunch_break_period=False):
         if not date_out or not date_in or not required_in or not required_out:
             return 0
         if break_time and lunch_break and lunch_break_period:
