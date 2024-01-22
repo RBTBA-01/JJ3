@@ -2,13 +2,30 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from odoo.tools.translate import _
-
+from lxml import etree
 from odoo.tools import float_round
+import logging
 
+_logger = logging.getLogger(__name__)
 
 class HRContract(models.Model):
     _inherit = 'hr.contract'
+
+    @api.depends('employee_id')
+    def _get_title(self):
+        for contract in self:
+            if contract.employee_id:
+                employee = self.env['hr.employee'].search([('id', '=', contract.employee_id.id)], limit = 1)
+                contract.title_id = employee.title.id if employee else False
+
+    @api.depends('employee_id')
+    def _change_department(self):
+        for contract in self:
+            if contract.employee_id:
+                employee = self.env['hr.employee'].search([('id', '=', contract.employee_id.id)], limit = 1)
+                contract.department_id = employee.department_id.id if employee else False 
 
     def get_prev_ntp(self, contract, payslip):
         domain = [('date_release', '<', payslip.date_release),
@@ -550,6 +567,7 @@ class HRContract(models.Model):
     new_salary_date = fields.Date('New Salary Date', compute="_compute_awd")
     temp_wage = fields.Float('Wage', compute="_compute_awd")
     temp_job_id = fields.Many2one('hr.job', 'Job')
+    wage = fields.Float('Wage', digits=(16, 2), required=False, store=True, compute="_compute_awd", help="Basic Salary of the employee")
     temp_struct_id = fields.Many2one('hr.payroll.structure', 'Salary Structure')
 
 
@@ -586,12 +604,17 @@ class HRSalaryMove(models.Model):
         if self.filtered(lambda r: r.date_end and r.date_end < r.date_start):
             raise ValidationError(_("End date 'date' must be greater than start date 'date'!"))
 
-    @api.depends('amount', 'average_working_days')
-    def _compute_rate(self):
-        for record in self:
-            if record.contract_id.average_working_days > 0:
-                record.daily_rate = record.amount / record.contract_id.average_working_days
-                record.hourly_rate = record.daily_rate / 8.0
+    @api.depends('average_working_days')
+    def _compute_daily_rate(self):
+        for rec in self:
+            if rec.contract_id.avg_wrk_days_id.name > 0:
+                rec.daily_rate = rec.amount / rec.contract_id.avg_wrk_days_id.name 
+
+    @api.depends('average_working_days')
+    def _compute_hourly_rate(self):
+        for rec in self:
+            if rec.contract_id.avg_wrk_days_id.name > 0:
+                rec.hourly_rate = rec.daily_rate / 8.0
 
     @api.constrains('date_start', 'date_end')
     def _check_validity(self):
@@ -643,9 +666,8 @@ class HRSalaryMove(models.Model):
     date_end = fields.Date('Date End')
     contract_id = fields.Many2one('hr.contract', 'Contract')
     average_working_days = fields.Float('Average Working Days')
-    daily_rate = fields.Float('Daily Rate', compute='_compute_rate')
-    hourly_rate = fields.Float('Hourly Rate', compute='_compute_rate')
-
+    daily_rate = fields.Float('Daily Rate', compute='_compute_daily_rate')
+    hourly_rate = fields.Float('Hourly Rate', compute='_compute_hourly_rate')
 
 class HREmployeeOtherIncome(models.Model):
     _name = 'hr.employee.other_income'
