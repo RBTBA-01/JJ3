@@ -19,6 +19,9 @@ from dateutil.relativedelta import relativedelta
 import sys
 reload(sys)
 sys.setdefaultencoding('utf8')
+import logging
+logger = logging.getLogger(__name__)
+
 
 # redefined imports
 context_timestamp = Datetime.context_timestamp
@@ -27,7 +30,7 @@ to_string = Datetime.to_string
 
 TIME_TO_RENDER = 8.0
 HOURS_PER_DAY = 8.0
-    
+
 
 def convert_time_to_float(time):
     hours = time.seconds // 3600
@@ -1227,10 +1230,16 @@ class HRAttendance(models.Model):
         if self.env.context.get('default_cron_schedule_time', False):
             return
         for attendance in self:
-            if not attendance.check_in and not attendance.check_out and not attendance.schedule_out and not attendance.schedule_in:
-                raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time.") % {
-                    'empl_name': attendance.employee_id.name_related,
-                })
+            attendance_overtime = self.env['hr.attendance.overtime']
+            if not attendance.check_in and not attendance.check_out and not attendance.schedule_out and not attendance.schedule_in and attendance_overtime.offset:
+                # Checks if the creating of attendance is offset
+                if attendance_overtime.offset:
+                    holidays = self.env['hr.holidays']
+                    holidays._check_attendance_offset()
+                else:
+                    raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time.") % {
+                        'empl_name': attendance.employee_id.name_related,
+                    })           
         return super(HRAttendance, self)._check_validity()
 
     @api.multi
@@ -2389,11 +2398,11 @@ class HRAttendanceOvertime(models.Model):
             res.append((record.id, name))
         return res
 
+    """SET OVERTIME TO DRAFT"""
     def action_draft(self):
         if self.holiday_id and self.offset:
             self.holiday_id.action_refuse()
             self.holiday_id.action_draft()
-        self.remove_from_attendance()
         return self.write({'state': 'draft'})
 
     @api.constrains('start_time', 'end_time')
@@ -2434,49 +2443,49 @@ class HRAttendanceOvertime(models.Model):
 
     def action_make_leave(self):
         """Create leaves."""
-        self.remove_from_attendance()
         for record in self:
 
+            # Check if the current user is trying to convert their own overtime to leave
             if self.env.uid == record.employee_id.user_id.id:
                 raise ValidationError(_('Unable to convert own overtime to leave!'))
 
+            # Check if the record has offset
             if record.offset:
+                # Check if the leave type is specified
                 if not record.holiday_status_id:
                     raise ValidationError(_('Please specify the leave type to be created'))
-                if record.holiday_status_id.is_cdo and record.employee_id and record.employee_id.contract_id \
-                        and record.employee_id.contract_id.job_id and record.employee_id.job_id not in record.holiday_status_id.job_ids:
-                    # continue
+                
+                # Check entitlement for cumulative day off
+                if (
+                    record.holiday_status_id.is_cdo
+                    and record.employee_id
+                    and record.employee_id.contract_id
+                    and record.employee_id.contract_id.job_id
+                    and record.employee_id.job_id not in record.holiday_status_id.job_ids
+                ):
                    raise ValidationError(_('This employee is not entitled for cumulative day off!.'))
-                hours_rendered = self.hours_requested
-                if record.holiday_status_id.is_cdo:
-                    hours_rendered = self.get_overtime_hours(record)
-
-                if hours_rendered <= 0:
+                # Check if hours rendered is less than or equal to zero
+                if self.hours_requested < 0:
                     raise ValidationError(_('Hours rendered of this overtime is less than or equal to zero!'))
-
+                
+                # If the employee is entitled for cumulative day off, calculate hours rendered
+                if record.holiday_status_id.is_cdo:
+                    self.hours_requested = self.get_overtime_hours(record)
+                
+                # Calculate the number of days for leave
                 amount = record.holiday_id._get_number_of_days(record.start_time, record.end_time, record.employee_id.id)
+
+                # If holiday_id exists, confirm and validate
                 if record.holiday_id:
                     record.holiday_id.number_of_days_temp = amount
                     record.holiday_id.action_confirm()
                     record.holiday_id.action_validate()
-
-                if not record.holiday_id:
+                else:
+                    # If holiday_id does not exist, create leaves and update holiday_id
                     holiday_id = self.create_leaves(record, amount)
-                    return self.write({'holiday_id': holiday_id.id})
+                    return self.write({'holiday_id': holiday_id.id, 'state': 'converted'})        
 
-        return True
-
-    @api.multi
-    def remove_from_attendance(self):
-        """Remove overtime reference from attendance."""
-        domain = [('overtime_id', 'in', self.ids)]
-        attendances = self.env['hr.attendance'].search(domain)
-        for att in attendances:
-            vals = {}
-            if att.rest_day_overtime:
-                vals['remarks'] = ''
-            vals['overtime_id'] = False
-            att.write(vals)
+        return self.write({'state': 'converted'})
 
     @api.multi
     def is_adjustment(self):
@@ -2499,7 +2508,7 @@ class HRAttendanceOvertime(models.Model):
             if payslip:
 
                 record.write({'overtime_adjustment': True})
-    
+
     """"APPROVED OVERTIME"""
     @api.multi
     def action_approved(self):
@@ -2523,26 +2532,34 @@ class HRAttendanceOvertime(models.Model):
                       ('check_out', '>=', record.start_time),
                       ('check_in', '<=', record.start_time)]
 
+            # Search attendance if the check out is greater than or match the start period overtime 
+            # and check if the check in less than or mactch the start period overtime
             attendance = self.env['hr.attendance'].search(domain, limit=1)
 
+            # If the attendance didn't search any results
             if not attendance:
                 domain = [('employee_id', '=', record.employee_id.id),
                           ('schedule_out', '>=', record.start_time),
                           ('schedule_in', '<=', record.start_time)
                           ]
 
+                # Store the variable if there is no results
                 attendance = self.env['hr.attendance'].search(domain, limit=1)
 
+            # If the attendance didn't search any results
             if not attendance:
                 domain = [('employee_id', '=', record.employee_id.id),
                           ('check_in', '<=', record.end_time),
                           ('check_out', '>=', record.start_time)
                           ]
 
+                # Store the variable if there is no results
                 attendance = self.env['hr.attendance'].search(domain, limit=1)
 
             attendance.write({'overtime_id': record and record.id or False})
 
+            # If the attendance can't get the overtime id 
+            # This means that overtime can be approved if it starts immediately after the employee's check-out time. 
             if attendance and not attendance.work_time_line_id and not attendance.holiday_id:
                 record.rest_day_overtime = True
 
@@ -2616,13 +2633,11 @@ class HRAttendanceOvertime(models.Model):
 
             if record.holiday_id:
                 record.holiday_id.action_refuse()
-        self.remove_from_attendance()
         return self.write({'state': 'disapproved'})
 
     def action_cancelled(self):
         if self.holiday_id:
             self.holiday_id.action_refuse()
-        self.remove_from_attendance()
         return self.write({'state': 'cancelled'})
 
     @api.multi
@@ -2756,7 +2771,8 @@ class HRAttendanceOvertime(models.Model):
     state = fields.Selection([('draft', 'Draft'),
                               ('approved', 'Approved'),
                               ('disapproved', 'Disapproved'),
-                              ('cancelled', 'Cancelled')],
+                              ('cancelled', 'Cancelled'),
+                              ('converted', 'Converted')],
                              track_visibility='onchange',
                              default="draft",
                              help="* Draft: Newly create record.\n"
@@ -2988,8 +3004,8 @@ class HRPayrollAttendance(models.Model):
 
         domain = [
             ('slip_id.employee_id', '=', employee_id),
-            ('slip_id.date_release', '>=', date_from),
-            ('slip_id.date_release', '<=', date_to),
+            ('slip_id.date_to', '>=', date_from),
+            ('slip_id.date_from', '<=', date_to),
             ('slip_id.state', '=', 'done'),
             ('slip_id.credit_note', '=', False)
         ]
@@ -3166,7 +3182,7 @@ class HRPayrollAttendance(models.Model):
         late_attendance_list = [item for item in x if item not in worked_hours]
 
         # Attach the computed values from late_attendance_list to another table inside the payslip (Late Processing)
-        # self.late_attendances = [(4, i.id, None) for i in late_attendance_list]
+        self.late_attendances = [(4, i.id, None) for i in late_attendance_list]
         
         # Official Business
         attendances = {
@@ -4344,6 +4360,49 @@ class HRYearToDate(models.Model):
     _rec_name = 'employee_id'
 
     @api.model
+    def create(self, vals):
+        create_employee = vals.get('employee_id')
+        create_ytd = vals.get('ytd_date')
+
+        if create_employee and create_ytd:
+            exist_record = self.search([
+                ('employee_id', '=', create_employee),
+                ('ytd_date', '=', create_ytd)
+            ], limit = 1)
+            if exist_record:
+                employee_name = self.env['hr.employee'].browse(create_employee).name
+                raise ValidationError(_("This employee '%s' record is already exist." %(employee_name)))
+            
+        return super(HRYearToDate, self).create(vals)
+
+    def write(self, vals):
+        res = super(HRYearToDate, self).write(vals)
+
+        # Check if 'old_ytd_amount' is in vals and if 'employee_id' is present in the current record
+        if 'old_ytd_amount' in vals and 'employee_id' in vals:
+            write_employee = vals['employee_id']
+            write_ytd = vals['ytd_date']
+
+            if 'employee_id' in vals and 'ytd_date' in vals:
+                exist_record = self.search([
+                    ('employee_id', '=', write_employee),
+                    ('ytd_date', '=', write_ytd),
+                    ('id', '!=', self.id)
+                ], limit=1)
+                if exist_record:
+                    employee_name = self.env['hr.employee'].browse(write_employee).name
+                    raise ValidationError(_("This employee '%s' record is already exist." %(employee_name)))
+                
+            employee_id = vals['employee_id']
+            old_ytd_amount = vals['old_ytd_amount']
+
+            # Update 'old_ytd_amount' for related hr.year_to_date records
+            ytd_records = self.env['hr.year_to_date.line'].search([('ytd_to_date_id.employee_id', '=', employee_id)], limit=1)
+            ytd_records.write({'old_ytd_amount': old_ytd_amount})
+
+        return res
+
+    @api.model
     def default_get(self, fields_list):
         res = super(HRYearToDate, self).default_get(fields_list)
         config_lines = []
@@ -4387,7 +4446,7 @@ class HRYearToDateLine(models.Model):
         for record in self:
             if record.ytd_to_date_id and record.ytd_to_date_id.employee_id:
                 date_from = from_string(record.ytd_to_date_id.ytd_date)
-                date_to = to_string(date_from.replace(month=12, year=int(date_from.strftime('%Y'))))
+                date_to = to_string(date_from.replace(month=12, day=31, year=int(date_from.strftime('%Y'))))
                 current_ytd_amount = sum([self.env['hr.payslip'].
                                           get_year_to_date(record.ytd_to_date_id.employee_id.id, record.ytd_to_date_id.ytd_date, date_to).
                                           get(r, 0) for r in record.ytd_config_id.salary_rule_ids.ids])
