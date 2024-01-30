@@ -59,7 +59,7 @@ class HRHDMF(models.TransientModel):
 
         for employee in self.employee_ids:
             # payslip = self.env['hr.payslip'].search([('employee_id', '=', employee.id), ('credit_note','=',False), ('date_release', '>=', self.date_from),('date_release', '<=', self.date_to), ('state','in', ['draft', 'done'])])
-            payslip = self.env['hr.payslip'].search([('employee_id', '=', employee.id), ('credit_note', '=', False),('date_from', '<=', self.date_from),('date_to', '>=', self.date_to), ('state', 'in', ['draft', 'done'])])
+            payslip = self.env['hr.payslip'].search([('employee_id', '=', employee.id), ('credit_note', '=', False),('date_from', '>=', self.date_from),('date_to', '<=', self.date_to), ('state', 'in', ['draft', 'done'])])
         
             line_ee = self.env['hr.payslip.line']
             line_er = self.env['hr.payslip.line']
@@ -127,16 +127,16 @@ class HRHDMF(models.TransientModel):
     @api.multi
     def action_generate_text_report(self):
         self.ensure_one()
-        fp = open('hdmf_report.txt', 'w')
+        report_content = ""
         company = self.env['res.company']._company_default_get('hris')
         address = str(company.street or '') + " " + str(company.street2 or '') + " " + str(company.city or '') + " " +\
             str(company.state_id and company.state_id.name or '') + " " +\
             str(company.country_id and company.country_id.name or '')
-        phone = str(company.phone or company.mobile)
+        phone = str(company.phone or '')
         today = datetime.now().strftime(DEFAULT_SERVER_DATE_FORMAT)
         date = "EH" + datetime.strftime(datetime.strptime(today,DEFAULT_SERVER_DATE_FORMAT),"%m%Y")
 
-        fp.write("{0:8} {1:20} {2:70} {3:80} {4:7} {5:10}".format(date, company.company_registry, company.name, address, company.zip, phone)+ "\n")
+        report_content += "{0:8} {1:20} {2:70} {3:80} {4:7} {5:10}".format(date, company.company_registry, company.name, address, company.zip, phone)+ "\n"
         # company_info = "{0:10} {1:10}".format((company.zip or ''), (company.phone or company.mobile))
         # fp.write("\t\t\t\t\t\t\t\t\t\t\t" + company_info + "\n\n")
 
@@ -157,16 +157,17 @@ class HRHDMF(models.TransientModel):
             hdmf_er = sum(line_er.mapped('total'))
 
             employee_info = "{0:30} {1:40} {2:40} {3:40} {4:13} {5:21} {6:8}".format(employee.hdmf_no or '', employee.lastname or '', employee.firstname or '', employee.middlename or '', "{:,.2f}".format(hdmf_ee), "{:,.2f}".format(hdmf_er), employee.birthday or '')
-            fp.write("\n" + employee_info)
-        fp.close()
+            report_content += "\n" + employee_info
 
-        #Final File
-        file = open('hdmf_report.txt', 'r')
-        out = file.read()
-        file.close()
+        # Create an attachment from the report content
+        report_attachment = self.env['ir.attachment'].create({
+            'name': 'pag-ibig_report_details.txt',
+            'datas': base64.b64encode(report_content.encode('utf-8')),
+            'res_model': 'hr.hdmf.contribution',
+            'res_id': self.id,
+        })
 
-        # out = base64.b64encode(fp)
-        self.write({'state': 'done', 'report': base64.b64encode(out), 'name': 'hdmf_report_details.txt'})
+        self.write({'state': 'done', 'report': report_attachment.datas, 'name': 'pag-ibig_report_details.txt'})
         return {
             'type': 'ir.actions.act_window',
             'name': 'HDMF REPORT',

@@ -24,7 +24,7 @@
                          <div>
                              <separator string="Employees"/>
                              <field name="employee_ids" context="{'tree_view_ref':'hris.employee_tree_view_ref', 'form_view_ref':'hris.employee_form_view_ref'}"
-                           nolabel="1" widget="many2many_list" colspan="4" >
+                           nolabel="1" widget="many2many_list" colspan="4" options="{'no_create':True, 'no_create_edit':True}">
                             </field>
                         </div>
                     </group>
@@ -52,7 +52,7 @@
         </record>
 
         <menuitem
-            name="HMDF"
+            name="PAG-IBIG"
             parent="menu_contribution_report"
             sequence="2"
             action="action_employee_hdmf"
