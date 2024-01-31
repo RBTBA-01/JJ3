@@ -774,8 +774,7 @@ class HRAttendance(models.Model):
                         # Get the earliest checkin
 #                         date_in = min(ob)
 
-                    earliest_in_hour, earliest_in_minute = float_time_convert(
-                        attendance.work_time_line_id.earliest_check_in)
+                    earliest_in_hour, earliest_in_minute = float_time_convert(attendance.work_time_line_id.earliest_check_in)
                     earliest_in = date_in.replace(hour=earliest_in_hour, minute=earliest_in_minute, second=0)
 
                     latest_in_hour, latest_in_minute = float_time_convert(attendance.work_time_line_id.latest_check_in)
@@ -784,11 +783,11 @@ class HRAttendance(models.Model):
                     if date_in < earliest_in:
                         required_in = earliest_in
 
-                    if date_in >= earliest_in and date_in <= latest_in:
+                    if earliest_in <= date_in <= latest_in:
                         required_in = date_in
 
                     if date_in >= latest_in:
-                        required_in = latest_in
+                        required_in = date_in
 
                 # check if night diff check in
                 required_in = get_intersection(date_in, date_out, required_in,
