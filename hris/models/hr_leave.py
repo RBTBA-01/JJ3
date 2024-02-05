@@ -464,7 +464,7 @@ class HRLeave(models.Model):
     def name_get(self):
         res = []
         for leave in self:
-            res.append((leave.id, _("%s on %s : %.4f day(s)") % (leave.employee_id.name or leave.category_id.name, leave.holiday_status_id.name, leave.number_of_days_temp)))
+            res.append((leave.id, _("%s on %s : %.2f day(s)") % (leave.employee_id.name or leave.category_id.name, leave.holiday_status_id.name, leave.number_of_days_temp)))
         return res
     
     @api.model
@@ -620,34 +620,10 @@ class HRLeave(models.Model):
                 uom_day = self.env.ref('product.product_uom_day')
                 if uom_hour and uom_day:
                     return uom_hour._compute_quantity(hours, uom_day)
-                
-        leave_days = []
-        current_date = from_dt
-        while current_date <= to_dt:
-            leave_days.append(current_date.strftime("%A").lower())
-            current_date += timedelta(days=1)
-            
-        """Returns the first workday of employee worktime schedule"""            
-        work_schedule = self.env['hr.employee.schedule.work_time'].search([('employee_id', '=', self.employee_id.id)], limit=1)
-        employee_work_days = []
-        for work_day in work_schedule.work_time_lines:
-            employee_work_days.append(work_day.days_of_week)
 
-        """Check if the workday is match on the overtime period"""
-        non_work_days = 0
-        for day in leave_days[:]:
-            if day not in employee_work_days:
-                    non_work_days += 1
-                    
-        """Check the day if the workday and the selected period on that day is equal"""
-        if to_dt.strftime("%A").lower() not in employee_work_days:
-            non_work_days += 1
-
-        time_delta = (to_dt - from_dt)
+        time_delta = to_dt - from_dt
         hours = time_delta.days + float(time_delta.seconds) / 28800
-        
-        # return round(hours * 2) / 2
-        return float_round((hours * 2 / 2), precision_digits=4)
+        return round(hours * 2) / 2
 
     @api.constrains('date_from')
     def _check_lockout_period(self):
@@ -1014,7 +990,23 @@ class HRLeave(models.Model):
     
 class HRLeaveStatus(models.Model):
     _inherit = 'hr.holidays.status'
-        
+    
+    @api.multi
+    def name_get(self):
+        if not self._context.get('employee_id'):
+            # leave counts is based on employee_id, would be inaccurate if not based on correct employee
+            return super(HRLeaveStatus, self).name_get()
+        res = []
+        for record in self:
+            name = record.name
+            if not record.limit:
+                name = "%(name)s (%(count)s)" % {
+                    'name': name,
+                    'count': _('%0.2f remaining out of %0.2f') % (record.virtual_remaining_leaves or 0.0, record.max_leaves or 0.0)
+                }
+            res.append((record.id, name))
+        return res
+    
     @api.constrains('code')
     def _check_code(self):
         """Check duplicated leave type code."""
