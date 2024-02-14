@@ -1834,6 +1834,11 @@ class HRAttendance(models.Model):
                 attendance.is_absent = False
                 attendance.absent_hours = 0
                 attendance.ob_hours = 0
+                if attendance.spl_holiday_ids:
+                    attendance.sp_holiday_hours = attendance.overtime_id.hours_requested
+                if attendance.reg_holiday_ids:
+                    attendance.reg_holiday_hours = attendance.overtime_id.hours_requested
+
             if holiday_end and holiday_start and required_in >= holiday_start and required_out <= holiday_end:
                 attendance.worked_hours = 0
             if attendance.work_time_line_id and leaves and not ob_leaves and not attendance.is_holiday and not attendance.worked_hours:
