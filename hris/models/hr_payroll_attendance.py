@@ -1834,10 +1834,19 @@ class HRAttendance(models.Model):
                 attendance.is_absent = False
                 attendance.absent_hours = 0
                 attendance.ob_hours = 0
+                # raise ValidationError(attendance.rest_day_hours)
                 if attendance.spl_holiday_ids:
-                    attendance.sp_holiday_hours = attendance.overtime_id.hours_requested
+                    if attendance.overtime_id.hours_requested <=8:
+                        attendance.sp_holiday_hours = attendance.overtime_id.hours_requested
+                    else:
+                        attendance.sp_holiday_hours = 8
+                        attendance.sp_hday_ot_hours = attendance.overtime_id.hours_requested - 8
                 if attendance.reg_holiday_ids:
-                    attendance.reg_holiday_hours = attendance.overtime_id.hours_requested
+                    if attendance.overtime_id.hours_requested <=8:
+                        attendance.reg_holiday_hours = attendance.overtime_id.hours_requested
+                    else:
+                        attendance.reg_holiday_hours = 8
+                        attendance.reg_hday_ot_hours = attendance.overtime_id.hours_requested - 8
 
             if holiday_end and holiday_start and required_in >= holiday_start and required_out <= holiday_end:
                 attendance.worked_hours = 0
