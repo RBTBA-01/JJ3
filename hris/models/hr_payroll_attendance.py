@@ -409,18 +409,9 @@ class HRAttendance(models.Model):
 
             overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
 
-        if rest_day:
-            # check_in = fields.Datetime.from_string(self.check_in)
-            # check_out = fields.Datetime.from_string(self.check_out)
-            # duration = (check_out - check_in).total_seconds() / 3600.0
+        if rest_day and not (self.spl_holiday_ids or self.reg_holiday_ids):
             date_in = from_string(self.check_in).strftime('%Y-%m-%d %H:%M')
             date_out = from_string(self.check_out).strftime('%Y-%m-%d %H:%M')
-            # domain = [('employee_id', '=', self.employee_id.id),
-            #       ('start_time', '<=', date_out),
-            #       ('start_time', '>=', date_in),
-            #       ('state', '=', 'approved')]
-            # overtime = self.env['hr.attendance.overtime'].search(domain, limit=1)
-            # if duration > 8:
             if overtime.hours_requested > 8:
                 # If the duration is exceeds 8 hours, set rest_day_hours to 8 hours
                 self.rest_day_hours = 8
@@ -430,9 +421,6 @@ class HRAttendance(models.Model):
                 self.rest_day_hours = overtime.hours_requested
                 self.rest_day_ot_hours = overtime.hours_requested - self.rest_day_hours
             self.remarks = 'RD'
-            # Only set the rest day overtime if it's rest day
-            # if overtime:
-            #     self.rest_day_ot_hours = overtime.hours_requested
         else:
             # Only set the self.overtime_id if it's not rest day
             self.overtime_id = overtime.id
@@ -1835,18 +1823,18 @@ class HRAttendance(models.Model):
                 attendance.absent_hours = 0
                 attendance.ob_hours = 0
                 # raise ValidationError(attendance.rest_day_hours)
-                if attendance.spl_holiday_ids:
-                    if attendance.overtime_id.hours_requested <=8:
-                        attendance.sp_holiday_hours = attendance.overtime_id.hours_requested
-                    else:
-                        attendance.sp_holiday_hours = 8
-                        attendance.sp_hday_ot_hours = attendance.overtime_id.hours_requested - 8
-                if attendance.reg_holiday_ids:
-                    if attendance.overtime_id.hours_requested <=8:
-                        attendance.reg_holiday_hours = attendance.overtime_id.hours_requested
-                    else:
-                        attendance.reg_holiday_hours = 8
-                        attendance.reg_hday_ot_hours = attendance.overtime_id.hours_requested - 8
+                # if attendance.spl_holiday_ids:
+                #     if attendance.overtime_id.hours_requested <=8:
+                #         attendance.sp_holiday_hours = attendance.overtime_id.hours_requested
+                #     else:
+                #         attendance.sp_holiday_hours = 8
+                #         attendance.sp_hday_ot_hours = attendance.overtime_id.hours_requested - 8
+                # if attendance.reg_holiday_ids:
+                #     if attendance.overtime_id.hours_requested <=8:
+                #         attendance.reg_holiday_hours = attendance.overtime_id.hours_requested
+                #     else:
+                #         attendance.reg_holiday_hours = 8
+                #         attendance.reg_hday_ot_hours = attendance.overtime_id.hours_requested - 8
 
             if holiday_end and holiday_start and required_in >= holiday_start and required_out <= holiday_end:
                 attendance.worked_hours = 0
@@ -2098,7 +2086,6 @@ class HRAttendance(models.Model):
     sp_holiday_hours = fields.Float('Special Holiday Hours', compute="_worked_hours_computation", store=True)
     reg_holiday_hours = fields.Float('Regular Holiday Hours', compute="_worked_hours_computation", store=True)
     ob_hours = fields.Float('OB Hours', compute='_worked_hours_computation', store=True)
-
     overtime_hours = fields.Float('Overtime Hours', compute="_worked_hours_computation", store=True)
     rest_day_hours = fields.Float('Rest Day Hours', compute="_worked_hours_computation", store=True)
     night_diff_ot_hours = fields.Float('Night Differential Overtime', compute='_compute_night_diff_overtime_hours',
@@ -3688,7 +3675,38 @@ class HRPayrollAttendance(models.Model):
 
         worked_hours_ids += worked_hours_ids.new(special_holiday_overtime)
         # End of Special Holiday Overtime
+        
+        # SPECIAL HOLIDAY REST DAY HOLIDAY 
+        attendances = {
+            'name': _("Special Holiday Rest Day"),
+            'sequence': 19,
+            'code': 'SHRD',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
 
+        for record in worked_hours:
+            attendances['number_of_days'] += float_round(record.sp_hol_rest_day_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.sp_hol_rest_day_hours, precision_digits=2)
+
+        worked_hours_ids += worked_hours_ids.new(attendances)
+
+        attendances = {
+            'name': _("Special Holiday Rest Day Overtime"),
+            'sequence': 19,
+            'code': 'SHRDOT',
+            'number_of_days': 0.0,
+            'number_of_hours': 0.0,
+            'contract_id': contract.id,
+        }
+
+        for record in worked_hours:
+            attendances['number_of_days'] += float_round(record.sp_hol_rest_day_hours_ot / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.sp_hol_rest_day_hours_ot, precision_digits=2)
+
+        worked_hours_ids += worked_hours_ids.new(attendances)
+        
         # Start of Regular Holiday Overtime
         regular_holiday_overtime = {
             'name': _("Regular Holiday Overtime"),
@@ -3707,6 +3725,12 @@ class HRPayrollAttendance(models.Model):
         worked_hours_ids += worked_hours_ids.new(regular_holiday_overtime)
         self.worked_days_line_ids += worked_hours_ids
         # End of Regular Holiday Overtime
+
+
+
+
+
+        #############################################
 
     @api.onchange('employee_id', 'date_from', 'date_to', 'contract_id', 'struct_id', 'payroll_period_id')
     def onchange_employee(self):

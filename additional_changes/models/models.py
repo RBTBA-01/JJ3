@@ -247,3 +247,31 @@ class SalaryRulesAdditional(models.Model):
 # test model for salary rules
 # class TestModel(models.Model):
 #     _inherit = 'hr.payslip'
+
+
+class InheritAttendance(models.Model):
+    _inherit = 'hr.attendance'
+
+#Creation of new field for holiday rest day overtime
+    sp_hol_rest_day_hours = fields.Float('Special Holiday Hours', store=True, compute='_compute_sp_rest')
+    sp_hol_rest_day_hours_ot = fields.Float('Special Holiday Hours', store=True, compute='_compute_sp_rest')
+
+
+    @api.depends('employee_id', 'check_in', 'check_out',
+                 'work_time_line_id', 'is_absent',
+                 'overtime_id', 'overtime_id.rest_day_overtime',
+                 'overtime_id.start_time', 'overtime_id.end_time', 'leave_ids',
+                 'leave_ids.state', 'leave_ids.date_from', 'leave_ids.date_to',
+                 'overtime_id.state', 'request_change_id', 'request_change_id.state',
+                 'reg_holiday_ids.holiday_start', 'reg_holiday_ids.holiday_end',
+                 'reg_holiday_ids', 'reg_holiday_ids.holiday_type',
+                 'spl_holiday_ids.holiday_start', 'spl_holiday_ids.holiday_end',
+                 'spl_holiday_ids', 'spl_holiday_ids.holiday_type', 'rest_day_overtime',
+                 'is_holiday', 'is_leave', 'is_suspended')
+    def _compute_sp_rest(self):
+        if self.spl_holiday_ids and self.overtime_id:
+            if self.overtime_id.hours_requested <= 8:
+                self.sp_hol_rest_day_hours = self.overtime_id.hours_requested
+            else:
+                self.sp_hol_rest_day_hours = 8
+                self.sp_hol_rest_day_hours_ot = self.overtime_id.hours_requested - 8
