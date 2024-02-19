@@ -3034,8 +3034,8 @@ class HRPayrollAttendance(models.Model):
 
         domain = [
             ('slip_id.employee_id', '=', employee_id),
-            ('slip_id.date_to', '>=', date_from),
-            ('slip_id.date_from', '<=', date_to),
+            ('slip_id.date_release', '>=', date_from),
+            ('slip_id.date_release', '<=', date_to),
             ('slip_id.state', '=', 'done'),
             ('slip_id.credit_note', '=', False)
         ]
