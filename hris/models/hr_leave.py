@@ -622,8 +622,16 @@ class HRLeave(models.Model):
                     return uom_hour._compute_quantity(hours, uom_day)
 
         time_delta = to_dt - from_dt
+        temp_hours = 0
         hours = time_delta.days + float(time_delta.seconds) / 28800
-        return round(hours * 2) / 2
+        compute_hours = round(hours * 2) / 2
+        # check if the computed hours is zero else get the hours only
+        if compute_hours == 0:
+            temp_hours = hours
+        else:
+            temp_hours = compute_hours
+
+        return temp_hours
 
     @api.constrains('date_from')
     def _check_lockout_period(self):
