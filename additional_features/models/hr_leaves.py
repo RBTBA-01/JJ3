@@ -289,7 +289,7 @@ class HrLeaveType(models.Model):
             if not record.year:
                 years = date.today().year
             else:
-                years = date.today().year
+                years = record.year
             if record.month and record.days:
                 expiration = "%s-%s-%s"%(years,record.month,record.days.month_date)
                 record.expiration_date = expiration

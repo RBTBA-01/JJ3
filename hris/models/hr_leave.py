@@ -682,7 +682,7 @@ class HRLeave(models.Model):
             year = int(curr_date.strftime('%Y'))
              
             if holiday.holiday_status_id.expiration_date:
-                expiration_date = fields.Date.from_string(holiday.holiday_status_id.expiration_date).replace(year=year)
+                expiration_date = fields.Date.from_string(holiday.holiday_status_id.expiration_date)
                 current_date = fields.Date.from_string(curr_date.strftime('%Y-%m-%d'))
            
                 if current_date >= expiration_date:
@@ -794,6 +794,8 @@ class HRLeave(models.Model):
 
         return res
 
+    def action_refuse_allocation(self):
+        return self.write({'state': 'refuse'})
                     
     @api.multi
     def action_refuse(self):
