@@ -1237,8 +1237,31 @@ class HRAttendance(models.Model):
                     attendance.night_diff_ot_hours = convert_time_to_float(number_of_nd)
                     reg_nd = max(0, (attendance.night_diff_hours - attendance.night_diff_ot_hours))
 
+    @api.constrains('check_in', 'check_out', 'employee_id')
+    def _check_validity(self):
+        if self.env.context.get('default_cron_schedule_time', False):
+            return
+        for attendance in self:
+            attendance_overtime = self.env['hr.attendance.overtime']
+            if not attendance.check_in and not attendance.check_out and not attendance.schedule_out and not attendance.schedule_in and attendance_overtime.offset:
+                # Checks if the creating of attendance is offset
+                if attendance_overtime.offset:
+                    holidays = self.env['hr.holidays']
+                    holidays._check_attendance_offset()
+                else:
+                    raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time.") % {
+                        'empl_name': attendance.employee_id.name_related,
+                    })           
+        return super(HRAttendance, self)._check_validity()
+
     # @api.constrains('check_in', 'check_out', 'employee_id')
     # def _check_validity(self):
+    #     """ Verifies the validity of the attendance record compared to the others from the same employee.
+    #         For the same employee we must have :
+    #             * maximum 1 "open" attendance record (without check_out)
+    #             * no overlapping time slices with previous employee records
+    #     """
+
     #     if self.env.context.get('default_cron_schedule_time', False):
     #         return
     #     for attendance in self:
@@ -1251,40 +1274,46 @@ class HRAttendance(models.Model):
     #             else:
     #                 raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time.") % {
     #                     'empl_name': attendance.employee_id.name_related,
-    #                 })           
-    #     return super(HRAttendance, self)._check_validity()
+    #                 }) 
+    #     for attendance in self:
+    #         # we take the latest attendance before our check_in time and check it doesn't overlap with ours
+    #         last_attendance_before_check_in = self.env['hr.attendance'].search([
+    #             ('employee_id', '=', attendance.employee_id.id),
+    #             ('check_in', '<=', attendance.check_in),
+    #             ('id', '!=', attendance.id),
+    #         ], order='check_in desc', limit=1)
+    #         if last_attendance_before_check_in and last_attendance_before_check_in.check_out and last_attendance_before_check_in.check_out > attendance.check_in:
+    #             raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
+    #                 'empl_name': attendance.employee_id.name_related,
+    #                 'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(attendance.check_in))),
+    #             })
 
-    @api.constrains('check_in', 'check_out', 'employee_id')
-    def _check_validity(self):
-        """ Verifies the validity of the attendance record compared to the others from the same employee.
-            For the same employee we must have :
-                * maximum 1 "open" attendance record (without check_out)
-                * no overlapping time slices with previous employee records
-        """
-        if self.env.context.get('default_cron_schedule_time', False):
-            return
-        for attendance in self:
-            attendance_overtime = self.env['hr.attendance.overtime']
-            if not attendance.check_in and not attendance.check_out and not attendance.schedule_out and not attendance.schedule_in and attendance_overtime.offset:
-                # Checks if the creating of attendance is offset
-                if attendance_overtime.offset:
-                    holidays = self.env['hr.holidays']
-                    holidays._check_attendance_offset()
-                else:
-                    raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time.") % {
-                        'empl_name': attendance.employee_id.name_related,})
-        for attendance in self:
-            # we take the latest attendance before our check_in time and check it doesn't overlap with ours
-            last_attendance_before_check_in = self.env['hr.attendance'].search([
-                ('employee_id', '=', attendance.employee_id.id),
-                ('check_in', '<=', attendance.check_in),
-                ('id', '!=', attendance.id),
-            ], order='check_in desc', limit=1)
-            if last_attendance_before_check_in and last_attendance_before_check_in.check_out and last_attendance_before_check_in.check_out and not last_attendance_before_check_in.leave_ids > attendance.check_in:
-                raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
-                    'empl_name': attendance.employee_id.name_related,
-                    'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(attendance.check_in))),
-                })
+    #         if not attendance.check_out:
+    #             # if our attendance is "open" (no check_out), we verify there is no other "open" attendance
+    #             no_check_out_attendances = self.env['hr.attendance'].search([
+    #                 ('employee_id', '=', attendance.employee_id.id),
+    #                 ('check_out', '=', False),
+    #                 ('id', '!=', attendance.id),
+    #             ], order='check_in desc', limit=1)
+    #             if no_check_out_attendances:
+    #                 raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee hasn't checked out since %(datetime)s") % {
+    #                     'empl_name': attendance.employee_id.name_related,
+    #                     'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(no_check_out_attendances.check_in))),
+    #                 })
+    #         else:
+    #             # we verify that the latest attendance with check_in time before our check_out time
+    #             # is the same as the one before our check_in time computed before, otherwise it overlaps
+    #             last_attendance_before_check_out = self.env['hr.attendance'].search([
+    #                 ('employee_id', '=', attendance.employee_id.id),
+    #                 ('check_in', '<', attendance.check_out),
+    #                 ('id', '!=', attendance.id),
+    #             ], order='check_in desc', limit=1)
+    #             if last_attendance_before_check_out and last_attendance_before_check_in != last_attendance_before_check_out:
+    #                 raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
+    #                     'empl_name': attendance.employee_id.name_related,
+    #                     'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(last_attendance_before_check_out.check_in))),
+    #                 })
+
 
 
     @api.multi
