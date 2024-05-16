@@ -897,35 +897,57 @@ class HRLeave(models.Model):
         for holiday in self:            
 
             if holiday.number_of_days_temp == 1 and holiday.type == 'remove' and (self.date_from and self.date_to):
-                    y = self.env['hr.attendance'].create({
+                    attendance_check = self.env['hr.attendance'].search([('employee_id', '=', self.employee_id.id), ('schedule_in','<=',self.date_from), ('schedule_out','>=',self.date_from)])
+
+                    if attendance_check and len(attendance_check) == 1:
+                        attendance_check.write({
                         'employee_id': self.employee_id.id,
                         'check_in': self.date_from,
                         'check_out': self.date_to,
-                    })
-                    y.write({'leave_ids': [(4, self.id)]})
+                        })
+                        attendance_check.write({'leave_ids': [(4, self.id)]})
+                    else:
+                        y = self.env['hr.attendance'].create({
+                            'employee_id': self.employee_id.id,
+                            'check_in': self.date_from,
+                            'check_out': self.date_to,
+                        })
+                        y.write({'leave_ids': [(4, self.id)]})
             if holiday.type == 'remove' and holiday.number_of_days_temp > 1 and (self.date_from and self.date_to):
                 current_date = datetime.strptime(self.date_from, '%Y-%m-%d %H:%M:%S')
                 end_date = datetime.strptime(self.date_to, '%Y-%m-%d %H:%M:%S')
-                while current_date <= end_date:
-                    check_in_time = current_date 
-                    check_out_time = check_in_time + timedelta(hours=9)
-                    attendance_vals = {
+                attendance_check = self.env['hr.attendance'].search([('employee_id', '=', self.employee_id.id), ('schedule_in','<=',self.date_from), ('schedule_out','>=',self.date_from)])
+
+                if attendance_check and len(attendance_check) > 1:
+                    while current_date <= end_date:
+                        check_in_time = current_date 
+                        check_out_time = check_in_time + timedelta(hours=9)
+                        attendance_check.write({
                         'employee_id': self.employee_id.id,
                         'check_in': check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
                         'check_out': check_out_time.strftime('%Y-%m-%d %H:%M:%S'),
-                    }
-                    y = self.env['hr.attendance'].create(attendance_vals)
+                    })
+                        attendance_check.write({'leave_ids': [(4, self.id)]})
+                else:
+                    while current_date <= end_date:
+                        check_in_time = current_date 
+                        check_out_time = check_in_time + timedelta(hours=9)
+                        attendance_vals = {
+                            'employee_id': self.employee_id.id,
+                            'check_in': check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+                            'check_out': check_out_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        }
+                        y = self.env['hr.attendance'].create(attendance_vals)
 
-                    # y = self.env['hr.attendance'].create({
-                    #     'employee_id': self.employee_id.id,
-                    #     'check_in': self.date_from,
-                    #     'check_out': self.date_to + timedelta(hours=9),
-                    # })
-                    y.write({'leave_ids': [(4, self.id)]})
-                    
-                    # Increment current_date by one day
-                    current_date += timedelta(days=1)
-            return True
+                        # y = self.env['hr.attendance'].create({
+                        #     'employee_id': self.employee_id.id,
+                        #     'check_in': self.date_from,
+                        #     'check_out': self.date_to + timedelta(hours=9),
+                        # })
+                        y.write({'leave_ids': [(4, self.id)]})
+                        
+                        # Increment current_date by one day
+                        current_date += timedelta(days=1)
         return res
       
     @api.onchange('process_type')
