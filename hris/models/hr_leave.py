@@ -868,42 +868,96 @@ class HRLeave(models.Model):
             record.apply_policy(record)
             record.write({'date_approved': fields.Datetime.now()})
         
-        # Creating leaves for LWP
-        for record in self:
-            # Check if the leaves is for allocating or for filing
-            if record.date_from and record.date_to:
-                # Calculate the day of the week for specified date
-                # day_of_week = calendar.day_name[date_from_datetime.weekday()].lower()
-                attendance = self.env['hr.attendance'].search([
-                    ('employee_id', '=', record.employee_id.id),
-                    ('check_in', '>=', record.date_from),
-                    ('check_in', '<=', record.date_to),
-                ], limit=1)      
-                if not attendance:
-                    # If there is no attendance record exists, create one based on the employee's worktime schedule
-                    worktime_schedule = self.env['hr.employee.schedule.work_time'].search([
-                        ('employee_id', '=', record.employee_id.id)
-                    ], limit=1)
+        # # Creating leaves for LWP
+        # for record in self:
+        #     # Check if the leaves is for allocating or for filing
+        #     if record.date_from and record.date_to:
+        #         # Calculate the day of the week for specified date
+        #         # day_of_week = calendar.day_name[date_from_datetime.weekday()].lower()
+        #         attendance = self.env['hr.attendance'].search([
+        #             ('employee_id', '=', record.employee_id.id),
+        #             ('check_in', '>=', record.date_from),
+        #             ('check_in', '<=', record.date_to),
+        #         ], limit=1)      
+        #         if not attendance:
+        #             # If there is no attendance record exists, create one based on the employee's worktime schedule
+        #             worktime_schedule = self.env['hr.employee.schedule.work_time'].search([
+        #                 ('employee_id', '=', record.employee_id.id)
+        #             ], limit=1)
 
-                    if worktime_schedule:
-                        # Create the attendance record
-                        attendance_values = {
-                            'employee_id': record.employee_id.id,
-                            'check_in': record.date_from,
-                            'check_out': record.date_to,
-                            'remarks': record.holiday_status_id.name,
-                        }
-                        # TODO FIND WHERE THE OB HOURS CAME FROM AND WHAT IS THE COMPUTATION???
-                        leave_attendance = self.env['hr.attendance'].create(attendance_values)
-                    # If the employee has no worktime schedule
-                    if not worktime_schedule:
-                        raise ValidationError("Employee has no worktime schedule.")
+        #             if worktime_schedule:
+        #                 # Create the attendance record
+        #                 attendance_values = {
+        #                     'employee_id': record.employee_id.id,
+        #                     'check_in': record.date_from,
+        #                     'check_out': record.date_to,
+        #                     'remarks': record.holiday_status_id.name,
+        #                 }
+        #                 # TODO FIND WHERE THE OB HOURS CAME FROM AND WHAT IS THE COMPUTATION???
+        #                 leave_attendance = self.env['hr.attendance'].create(attendance_values)
+        #             # If the employee has no worktime schedule
+        #             if not worktime_schedule:
+        #                 raise ValidationError("Employee has no worktime schedule.")
+        #         else:
+        #             continue
+        #             # raise ValidationError("Attendance is already created for %s at %s" % (record.employee_id.name, record.date_from))    
+        #     else:
+        #         # If this leave is for allocation only it will avoid creating an attendance that has no values
+        #         continue
+        for holiday in self:            
+
+            if holiday.number_of_days_temp == 1 and holiday.type == 'remove' and (self.date_from and self.date_to):
+                    attendance_check = self.env['hr.attendance'].search([('employee_id', '=', self.employee_id.id), ('schedule_in','<=',self.date_from), ('schedule_out','>=',self.date_from)])
+
+                    if attendance_check and len(attendance_check) == 1:
+                        attendance_check.write({
+                        'employee_id': self.employee_id.id,
+                        'check_in': self.date_from,
+                        'check_out': self.date_to,
+                        })
+                        attendance_check.write({'leave_ids': [(4, self.id)]})
+                    else:
+                        y = self.env['hr.attendance'].create({
+                            'employee_id': self.employee_id.id,
+                            'check_in': self.date_from,
+                            'check_out': self.date_to,
+                        })
+                        y.write({'leave_ids': [(4, self.id)]})
+            if holiday.type == 'remove' and holiday.number_of_days_temp > 1 and (self.date_from and self.date_to):
+                current_date = datetime.strptime(self.date_from, '%Y-%m-%d %H:%M:%S')
+                end_date = datetime.strptime(self.date_to, '%Y-%m-%d %H:%M:%S')
+                attendance_check = self.env['hr.attendance'].search([('employee_id', '=', self.employee_id.id), ('schedule_in','<=',self.date_from), ('schedule_out','>=',self.date_from)])
+
+                if attendance_check and len(attendance_check) > 1:
+                    while current_date <= end_date:
+                        check_in_time = current_date 
+                        check_out_time = check_in_time + timedelta(hours=9)
+                        attendance_check.write({
+                        'employee_id': self.employee_id.id,
+                        'check_in': check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'check_out': check_out_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    })
+                        attendance_check.write({'leave_ids': [(4, self.id)]})
                 else:
-                    continue
-                    # raise ValidationError("Attendance is already created for %s at %s" % (record.employee_id.name, record.date_from))    
-            else:
-                # If this leave is for allocation only it will avoid creating an attendance that has no values
-                continue
+                    while current_date <= end_date:
+                        check_in_time = current_date 
+                        check_out_time = check_in_time + timedelta(hours=9)
+                        attendance_vals = {
+                            'employee_id': self.employee_id.id,
+                            'check_in': check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+                            'check_out': check_out_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        }
+                        y = self.env['hr.attendance'].create(attendance_vals)
+
+                        # y = self.env['hr.attendance'].create({
+                        #     'employee_id': self.employee_id.id,
+                        #     'check_in': self.date_from,
+                        #     'check_out': self.date_to + timedelta(hours=9),
+                        # })
+                        y.write({'leave_ids': [(4, self.id)]})
+                        
+                        # Increment current_date by one day
+                        current_date += timedelta(days=1)
         return res
       
     @api.onchange('process_type')
