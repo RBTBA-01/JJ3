@@ -211,19 +211,46 @@
 			<field name="arch" type="xml">
 				<form>
 					<header>
-						<button name="btn_make_draft" groups="hr.group_hr_user,hr.group_hr_manager" string="RESET TO DRAFT" states="approved,disapproved" type="object"
-							class="btn btn-primary"/>
+						<button name="btn_make_draft"
+						 		groups="hr.group_hr_user,hr.group_hr_manager"
+								string="RESET TO DRAFT" 
+								states="approved,disapproved,cancelled" 
+								type="object"
+								class="btn btn-primary"
+								confirm="Do you want to draft this overtime?"/>
 
-						<button name="btn_approved" groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin" string="APPROVE" states="draft" type="object"
-							context="{'is_approve':True}" class="btn btn-primary"/>
+						<button name="btn_approved" 
+								groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin" 
+								string="APPROVE" 
+								states="draft" 
+								type="object"
+								context="{'is_approve':True}" 
+								class="btn btn-primary"
+								confirm="Do you want to approved this overtime?"/>
 
-						<button name="btn_make_leave" groups="hr.group_hr_user,hr.group_hr_manager" string="CONVERT TO LEAVE"
-							attrs="{'invisible': ['|',('state', '!=', 'approved'), ('offset', '=', False)]}" type="object" class="btn btn-primary"/>
+						<button name="btn_make_leave" 
+								groups="hr.group_hr_user,hr.group_hr_manager" 
+								string="CONVERT TO LEAVE"
+								attrs="{'invisible': ['|',('state', '!=', 'approved'), ('offset', '=', False)]}" 
+								type="object" 
+								class="btn btn-primary"
+								confirm="Do you want to convert this overtime?"/>
 
-						<button name="btn_disapproved" groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin" string="DISAPPROVED" states="draft" type="object"
-							class="btn btn-primary"/>
+						<button name="btn_disapproved" 
+								groups="hris.group_approver,hris.group_hr_user,hris.payroll_admin" 
+								string="DISAPPROVED" 
+								states="draft" 
+								type="object"
+								class="btn btn-primary"
+								confirm="Do you want to disapproved this overtime?"/>
 
-						<button name="btn_cancelled" groups="hr.group_hr_user,hr.group_hr_manager" string="CANCEL" states="approved" type="object" class="btn btn-primary"/>
+						<button name="btn_cancelled" 
+								groups="hr.group_hr_user,hr.group_hr_manager" 
+								string="CANCEL" 
+								states="approved" 
+								type="object" 
+								class="btn btn-primary"
+								confirm="Do you want to cancel this overtime?"/>
 
 						<field name="state" widget="statusbar" nolabel="1" statusbar_visible="draft,approved,cancelled"/>
 					</header>

@@ -237,7 +237,7 @@
 	   	            	    	<sheet>
 	   	            	    	    <group>
 	   	            	    	        <group>
-							<field name="amount" readonly="0"/>
+											<field name="amount" readonly="0"/>
 	   	            	    	        	<field name="average_working_days" invisible="1" />
 	    	            	    			<field name="daily_rate" />
 	    	            	    			<field name="hourly_rate" />
@@ -249,9 +249,9 @@
 	    	            	</form>
 	    	            	<tree editable="bottom">
 	    	            		<field name="amount" readonly="0"/>
-	    	            	    	<field name="average_working_days" invisible="1" />
-	    	            	    	<field name="daily_rate" />
-	    	            	    	<field name="hourly_rate" />
+								<field name="average_working_days" invisible="1" />
+								<field name="daily_rate" />
+								<field name="hourly_rate" />
 		            	    	<field name="date_start" />
 		            	    	<field name="date_end" />
 	    	            	</tree>

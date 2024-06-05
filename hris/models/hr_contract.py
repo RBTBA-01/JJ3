@@ -562,9 +562,9 @@ class HRSalaryMove(models.Model):
     @api.depends('amount', 'average_working_days')
     def _compute_rate(self):
         for record in self:
-            if record.average_working_days > 0:
-                record.daily_rate = record.amount / record.average_working_days
-                record.hourly_rate = (record.amount / record.average_working_days) / 8.0
+            if record.contract_id.average_working_days > 0:
+                record.daily_rate = record.amount / record.contract_id.average_working_days
+                record.hourly_rate = record.daily_rate / 8.0
 
     @api.constrains('date_start', 'date_end')
     def _check_validity(self):

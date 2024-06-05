@@ -21,6 +21,7 @@
         'security/ir.model.access.csv',
         'views/hr_leaves.xml',
         'views/hr_employee.xml',
+        'views/leaves_benefits_policy.xml',
         'report/leaves_conversion_payslip.xml',
 
     ],

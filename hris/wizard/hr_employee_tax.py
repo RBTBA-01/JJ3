@@ -53,13 +53,17 @@ class HRTax(models.TransientModel):
         wtax_tot = 0
         
         for employee in self.employee_ids:
+            # payslip = self.env['hr.payslip'].search(
+            #     [('employee_id', '=', employee.id), ('credit_note', '=', False),('date_from', '>=', self.date_from),('date_to', '<=', self.date_to), ('state', 'in', ['draft', 'done'])])
             payslip = self.env['hr.payslip'].search(
-                [('employee_id', '=', employee.id), ('credit_note', '=', False),('date_from', '<=', self.date_from),('date_to', '>=', self.date_to), ('state', 'in', ['draft', 'done'])])
+                [('employee_id', '=', employee.id), ('credit_note', '=', False),('date_to','>=', self.date_to),('date_from', '<=', self.date_from),('state', 'in', ['draft', 'done'])])
+            # payslip = self.env['hr.payslip'].search(
+            #     [('employee_id', '=', employee.id), ('credit_note', '=', False),('date_release', '>=', self.date_from),('date_release', '<=', self.date_to),('state', 'in', ['draft', 'done'])])
             
             tax_line = self.env['hr.payslip.line']
             for record in payslip:
                 
-                tax_line |= record.line_ids.filtered(lambda r:r.code in ('WTHTAX-SM', 'WTHTAX-M'))
+                tax_line |= record.line_ids.filtered(lambda r:r.code in ('WTHTAX-SM', 'WTHTAX-M', 'WTW'))
             
             wtax = sum(tax_line.mapped('total'))
             

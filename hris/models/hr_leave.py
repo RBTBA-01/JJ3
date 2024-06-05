@@ -1,10 +1,11 @@
 #-*-coding:utf-8-*-
 from odoo import models, fields, api
-from odoo.tools import float_compare
+from odoo.tools import float_compare, float_round
 from odoo.exceptions import ValidationError,UserError
 from odoo.tools.translate import _
 from datetime import datetime,timedelta
 from dateutil.relativedelta import relativedelta
+import calendar 
 
 MONTHS = 12
 START_MONTH = 1 
@@ -75,9 +76,7 @@ class HRLeavesType(models.Model):
             ('state', 'in', ['confirm', 'validate1', 'validate']),
             ('holiday_status_id', '=', holiday_status_id.id),
         ]
-        if args:
-            domain += args
-            
+
         holidays = self.env['hr.holidays'].search(domain)
         for holiday in holidays:
 
@@ -97,16 +96,15 @@ class HRLeavesType(models.Model):
                     status_dict['remaining_leaves'] -= holiday.number_of_days_temp
         return result
     
-    def cron_expire_leaves(self, cron_id):
-        if cron_id:
-            leaves = self.env['hr.leave.type'].search([('cron_id', '=', cron_id), ('state','=', 'activate')])
-            leaves.action_expire_leaves()
+    def cron_expire_leaves(self):
+        leaves = self.env['hr.leave.type'].search([('state','=', 'activate')])
+        leaves.action_expire_leaves()
     
     def action_expire_leaves(self):
         """Create expire leaves.
         Compares carried over leaves and leaves taken to
         get the leave days to be expired."""
-        for record in self.filtered(lambda record:record.state == 'activate' and record.with_expiration):
+        for record in self.filtered(lambda record:record.state == 'activate' and record.is_expiration):
             
             for category in record.categ_ids:
                 
@@ -126,12 +124,12 @@ class HRLeavesType(models.Model):
                         ('type', '=', 'add')
                     ]
     
-                    carried_over_leave_days = self.get_days(employee.id, record.holiday_status_id, args)[record.holiday_status_id.id]
+                    carried_over_leave_days = self.get_days(employee.id, record.holiday_status_id)[record.holiday_status_id.id]
                     remaining_leaves = carried_over_leave_days['remaining_leaves']
                     
                     #skip if no remaining leaves
-                    if float_compare(carried_over_leave_days['remaining_leaves'], 0, precision_digits=2) == -1 or \
-                    float_compare(carried_over_leave_days['virtual_remaining_leaves'], 0, precision_digits=2) == -1:
+                    if float_compare(carried_over_leave_days['remaining_leaves'], 0, precision_digits=2) < 0 or \
+                    float_compare(carried_over_leave_days['virtual_remaining_leaves'], 0, precision_digits=2) < 0:
                         continue
                     
                     args = [
@@ -462,6 +460,13 @@ class CalendarLeaves(models.Model):
 class HRLeave(models.Model):
     _inherit = 'hr.holidays'
 
+    @api.multi
+    def name_get(self):
+        res = []
+        for leave in self:
+            res.append((leave.id, _("%s on %s : %.2f day(s)") % (leave.employee_id.name or leave.category_id.name, leave.holiday_status_id.name, leave.number_of_days_temp)))
+        return res
+    
     @api.model
     def leaves_filter_act(self):
         hr_emp = self.env['hr.employee'].search([('user_id', '=', self.env.user.id)])
@@ -617,8 +622,16 @@ class HRLeave(models.Model):
                     return uom_hour._compute_quantity(hours, uom_day)
 
         time_delta = to_dt - from_dt
+        temp_hours = 0
         hours = time_delta.days + float(time_delta.seconds) / 28800
-        return round(hours * 2) / 2
+        compute_hours = round(hours * 2) / 2
+        # check if the computed hours is zero else get the hours only
+        if compute_hours == 0:
+            temp_hours = hours
+        else:
+            temp_hours = compute_hours
+
+        return temp_hours
 
     @api.constrains('date_from')
     def _check_lockout_period(self):
@@ -669,15 +682,15 @@ class HRLeave(models.Model):
             year = int(curr_date.strftime('%Y'))
              
             if holiday.holiday_status_id.expiration_date:
-                expiration_date = fields.Date.from_string(holiday.holiday_status_id.expiration_date).replace(year=year)
+                expiration_date = fields.Date.from_string(holiday.holiday_status_id.expiration_date)
                 current_date = fields.Date.from_string(curr_date.strftime('%Y-%m-%d'))
            
                 if current_date >= expiration_date:
                     raise ValidationError(_('Leaves already expired.'))
 
             leave_days = holiday.holiday_status_id.get_days(holiday.employee_id.id)[holiday.holiday_status_id.id]
-            if float_compare(leave_days['remaining_leaves'], 0, precision_digits=2) == -1 or \
-              float_compare(leave_days['virtual_remaining_leaves'], 0, precision_digits=2) == -1:
+            if float_compare(leave_days['remaining_leaves'], 0, precision_digits=2) < 0 or \
+              float_compare(leave_days['virtual_remaining_leaves'], 0, precision_digits=2) < 0:
                 raise ValidationError(_('The number of remaining leaves is not sufficient for this leave type.\n'
                                             'Please verify also the leaves waiting for validation.'))
 
@@ -781,6 +794,8 @@ class HRLeave(models.Model):
 
         return res
 
+    def action_refuse_allocation(self):
+        return self.write({'state': 'refuse'})
                     
     @api.multi
     def action_refuse(self):
@@ -807,27 +822,143 @@ class HRLeave(models.Model):
             record.set_to_attendance()
             record.is_adjustment()
 
+    # Check if there is an existing attendance for this employee and given date
+    @api.multi
+    def _check_attendance_offset(self):
+        for record in self:
+            # Calculate the day of the week for specified date
+            # day_of_week = calendar.day_name[date_from_datetime.weekday()].lower()
+            attendance = self.env['hr.attendance'].search([
+                ('employee_id', '=', record.employee_id.id),
+                ('check_in', '>=', record.date_from),
+                ('check_in', '<=', record.date_to),
+            ], limit=1)
+            if not attendance:
+                # If there is no attendance record exists, create one based on the employee's worktime schedule
+                worktime_schedule = self.env['hr.employee.schedule.work_time'].search([
+                    ('employee_id', '=', record.employee_id.id)
+                ], limit=1)
 
-    # @api.multi
-    # def action_approve(self):
-    #     # raise ValidationError(self.id)      
-    #     """Check notice period and lockout period before approving."""
-    #     res = super(HRLeave, self).action_approve()
-    #     if not (self.env.user.has_group('hris.group_approver') or self.env.user.has_group('hris.group_hr_user') or self.env.user.has_group('hris.payroll_admin')):
-    #         raise UserError(_('Only an Approver can approve leaves requests.'))
+                if worktime_schedule:
+                    # Create the attendance record
+                    attendance_values = {
+                        'employee_id': record.employee_id.id,
+                        'check_in': record.date_from,
+                        'check_out': record.date_to,
+                        'remarks': 'OFFSET',
+                    }
+                    # TODO FIND WHERE THE OB HOURS CAME FROM AND WHAT IS THE COMPUTATION???
+                    offset_attendance = self.env['hr.attendance'].create(attendance_values)
+                # If the employee has no worktime schedule
+                if not worktime_schedule:
+                    raise ValidationError("Employee has no worktime schedule.")
+            else:
+                raise ValidationError("Attendance is already created for %s at %s" % (record.employee_id.name, record.date_from))    
+            
+        return True
+
+    @api.multi
+    def action_approve(self):
+        """Check notice period and lockout period before approving."""
+        res = super(HRLeave, self).action_approve()
+        if not (self.env.user.has_group('hris.group_approver') or self.env.user.has_group('hris.group_hr_user') or self.env.user.has_group('hris.payroll_admin')):
+            raise UserError(_('Only an Approver can approve leaves requests.'))
         
-    #     for record in self:
-    #         record.apply_policy(record)
-    #         # record.env['hr.attendance'].create({
-    #         #     'employee_id': self.employee_id.id,
-    #         #     'check_in': self.date_from,
-    #         #     'check_out': self.date_to,
-    #         # })
+        for record in self:
+            record.apply_policy(record)
+            record.write({'date_approved': fields.Datetime.now()})
+        
+        # # Creating leaves for LWP
+        # for record in self:
+        #     # Check if the leaves is for allocating or for filing
+        #     if record.date_from and record.date_to:
+        #         # Calculate the day of the week for specified date
+        #         # day_of_week = calendar.day_name[date_from_datetime.weekday()].lower()
+        #         attendance = self.env['hr.attendance'].search([
+        #             ('employee_id', '=', record.employee_id.id),
+        #             ('check_in', '>=', record.date_from),
+        #             ('check_in', '<=', record.date_to),
+        #         ], limit=1)      
+        #         if not attendance:
+        #             # If there is no attendance record exists, create one based on the employee's worktime schedule
+        #             worktime_schedule = self.env['hr.employee.schedule.work_time'].search([
+        #                 ('employee_id', '=', record.employee_id.id)
+        #             ], limit=1)
 
-    #         # record.write({'leave_ids': [(4, self.id)],
-    #         #               'date_approved': fields.Datetime.now()})
-    #         # record.write({'date_approved': fields.Datetime.now()})
-    #     return res
+        #             if worktime_schedule:
+        #                 # Create the attendance record
+        #                 attendance_values = {
+        #                     'employee_id': record.employee_id.id,
+        #                     'check_in': record.date_from,
+        #                     'check_out': record.date_to,
+        #                     'remarks': record.holiday_status_id.name,
+        #                 }
+        #                 # TODO FIND WHERE THE OB HOURS CAME FROM AND WHAT IS THE COMPUTATION???
+        #                 leave_attendance = self.env['hr.attendance'].create(attendance_values)
+        #             # If the employee has no worktime schedule
+        #             if not worktime_schedule:
+        #                 raise ValidationError("Employee has no worktime schedule.")
+        #         else:
+        #             continue
+        #             # raise ValidationError("Attendance is already created for %s at %s" % (record.employee_id.name, record.date_from))    
+        #     else:
+        #         # If this leave is for allocation only it will avoid creating an attendance that has no values
+        #         continue
+        for holiday in self:            
+
+            if holiday.number_of_days_temp == 1 and holiday.type == 'remove' and (self.date_from and self.date_to):
+                    attendance_check = self.env['hr.attendance'].search([('employee_id', '=', self.employee_id.id), ('schedule_in','<=',self.date_from), ('schedule_out','>=',self.date_from)])
+
+                    if attendance_check and len(attendance_check) == 1:
+                        attendance_check.write({
+                        'employee_id': self.employee_id.id,
+                        'check_in': self.date_from,
+                        'check_out': self.date_to,
+                        })
+                        attendance_check.write({'leave_ids': [(4, self.id)]})
+                    else:
+                        y = self.env['hr.attendance'].create({
+                            'employee_id': self.employee_id.id,
+                            'check_in': self.date_from,
+                            'check_out': self.date_to,
+                        })
+                        y.write({'leave_ids': [(4, self.id)]})
+            if holiday.type == 'remove' and holiday.number_of_days_temp > 1 and (self.date_from and self.date_to):
+                current_date = datetime.strptime(self.date_from, '%Y-%m-%d %H:%M:%S')
+                end_date = datetime.strptime(self.date_to, '%Y-%m-%d %H:%M:%S')
+                attendance_check = self.env['hr.attendance'].search([('employee_id', '=', self.employee_id.id), ('schedule_in','<=',self.date_from), ('schedule_out','>=',self.date_from)])
+
+                if attendance_check and len(attendance_check) > 1:
+                    while current_date <= end_date:
+                        check_in_time = current_date 
+                        check_out_time = check_in_time + timedelta(hours=9)
+                        attendance_check.write({
+                        'employee_id': self.employee_id.id,
+                        'check_in': check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'check_out': check_out_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    })
+                        attendance_check.write({'leave_ids': [(4, self.id)]})
+                else:
+                    while current_date <= end_date:
+                        check_in_time = current_date 
+                        check_out_time = check_in_time + timedelta(hours=9)
+                        attendance_vals = {
+                            'employee_id': self.employee_id.id,
+                            'check_in': check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+                            'check_out': check_out_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        }
+                        y = self.env['hr.attendance'].create(attendance_vals)
+
+                        # y = self.env['hr.attendance'].create({
+                        #     'employee_id': self.employee_id.id,
+                        #     'check_in': self.date_from,
+                        #     'check_out': self.date_to + timedelta(hours=9),
+                        # })
+                        y.write({'leave_ids': [(4, self.id)]})
+                        
+                        # Increment current_date by one day
+                        current_date += timedelta(days=1)
+        return res
       
     @api.onchange('process_type')
     def onchange_process_type(self):
@@ -852,6 +983,7 @@ class HRLeave(models.Model):
             if self.env.uid != 1 and self.env.uid == holiday.employee_id.user_id.id:
                 raise ValidationError(_('Unable to approve own leave requests!'))
             
+            # Apply policy, update holiday state, and other actions as before
             holiday.apply_policy(holiday)
             holiday.write({'state': 'validate', 'date_approved': fields.Datetime.now()})
             
@@ -877,6 +1009,7 @@ class HRLeave(models.Model):
                     meeting_values['partner_ids'] = [(4, holiday.user_id.partner_id.id)]
 
                 meeting = self.env['calendar.event'].with_context(no_mail_to_attendees=True).create(meeting_values)
+                """ This method will create entry in resource calendar leave object at the time of holidays validated """
                 holiday._create_resource_leave()
                 holiday.write({'meeting_id': meeting.id})
             elif holiday.holiday_type == 'category':
@@ -885,7 +1018,7 @@ class HRLeave(models.Model):
                     values = holiday._prepare_create_by_category(employee)
                     leaves += self.with_context(mail_notify_force_send=False).create(values)
                 # TODO is it necessary to interleave the calls?
-                # leaves.action_approve()
+                leaves.action_approve()
                 if leaves and leaves[0].double_validation:
                     leaves.action_validate()
         return True
@@ -921,7 +1054,23 @@ class HRLeave(models.Model):
     
 class HRLeaveStatus(models.Model):
     _inherit = 'hr.holidays.status'
-        
+    
+    @api.multi
+    def name_get(self):
+        if not self._context.get('employee_id'):
+            # leave counts is based on employee_id, would be inaccurate if not based on correct employee
+            return super(HRLeaveStatus, self).name_get()
+        res = []
+        for record in self:
+            name = record.name
+            if not record.limit:
+                name = "%(name)s (%(count)s)" % {
+                    'name': name,
+                    'count': _('%0.2f remaining out of %0.2f') % (record.virtual_remaining_leaves or 0.0, record.max_leaves or 0.0)
+                }
+            res.append((record.id, name))
+        return res
+    
     @api.constrains('code')
     def _check_code(self):
         """Check duplicated leave type code."""
