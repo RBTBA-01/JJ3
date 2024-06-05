@@ -418,6 +418,7 @@ class HRAttendance(models.Model):
                 # If the duration is 8 hours or less, set rest_day_hours to the actual duration
                 self.rest_day_hours = duration
 
+            self.rest_day_hours = duration
             self.remarks = 'RD'
             # Only set the rest day overtime if it's rest day
             if overtime:
