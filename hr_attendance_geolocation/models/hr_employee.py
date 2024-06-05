@@ -13,7 +13,7 @@ class HrEmployee(models.Model):
 
     @api.multi
     def attendance_manual(self, next_action, entered_pin=False,
-                          location=True):
+                          location=False):
         res = super(HrEmployee, self.with_context(
             attendance_location=location)).attendance_manual(
             next_action, entered_pin)
