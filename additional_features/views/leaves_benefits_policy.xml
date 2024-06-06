@@ -1,0 +1,27 @@
+<odoo>
+    <data>
+        <record id="leave_benefits_policy_action" model="ir.actions.act_window">
+            <field name="name">leave benefits policy</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">leave.benefits.policy</field>
+            <field name="view_mode">tree</field>
+        </record>
+
+        <record id="leave_benefits_policy_view_tree" model="ir.ui.view">
+            <field name="name">leave_benefits_policy_view_tree</field>
+            <field name="model">leave.benefits.policy</field>
+            <field name="arch" type="xml">
+                <tree editable="1">
+                    <field name="length_of_service" string="Length of Service (Month)" />
+                    <field name="base_leave" string="Base Leave"/>
+                    <field name="equivalent_vl_credits"/>
+                    <field name="equivalent_sl_credits"/>
+                </tree>
+            </field>
+        </record>
+
+        <menuitem id="leave_benefits_policy_menu" name="Leave Benefits Policy"
+                  parent="hr_holidays.menu_hr_holidays_configuration"
+                  action="leave_benefits_policy_action"/>
+    </data>
+</odoo>
