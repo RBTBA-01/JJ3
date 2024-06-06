@@ -1807,23 +1807,27 @@ class HRAttendance(models.Model):
 
                         if attendance.spl_holiday_ids or attendance.reg_holiday_ids:
                             reg_holiday_hours = 0
+                            reg_holiday_ot_hours = 0
                             spl_holiday_hours = 0
+                            spl_holiday_ot_hours = 0
                             holiday_hours = attendance.calculate_holiday_hours()
-                            reg_holiday_hours += holiday_hours['regular_holiday_hours']
-                            spl_holiday_hours += holiday_hours['special_holiday_hours']
+                            reg_holiday_hours = holiday_hours['regular_holiday_hours']
+                            reg_holiday_ot_hours = holiday_hours['regular_holiday_ot_hours']
+                            spl_holiday_hours = holiday_hours['special_holiday_hours']
+                            spl_holiday_ot_hours = holiday_hours['special_holiday_ot_hours']
                             if reg_holiday_hours > HOURS_PER_DAY:
                                 reg_holiday_working_hours = HOURS_PER_DAY
-                                reg_holiday_ot_working_hours = reg_holiday_hours - HOURS_PER_DAY
+                                reg_holiday_ot_working_hours = reg_holiday_ot_hours
                             else:
                                 reg_holiday_working_hours = reg_holiday_hours > 0 and reg_holiday_hours or 0
-                                reg_holiday_ot_working_hours = 0
+                                reg_holiday_ot_working_hours = reg_holiday_ot_hours > 0 and reg_holiday_ot_hours or 0
 
                             if spl_holiday_hours > HOURS_PER_DAY:
                                 spl_holiday_working_hours = HOURS_PER_DAY
-                                spl_holiday_ot_working_hours = spl_holiday_hours - HOURS_PER_DAY
+                                spl_holiday_ot_working_hours = spl_holiday_ot_hours
                             else:
                                 spl_holiday_working_hours = spl_holiday_hours > 0 and spl_holiday_hours or 0
-                                spl_holiday_ot_working_hours = 0
+                                spl_holiday_ot_working_hours = spl_holiday_ot_hours > 0 and spl_holiday_ot_hours or 0
 
                             attendance.is_holiday = True
                             attendance.sp_holiday_hours = attendance.spl_holiday_ids and spl_holiday_working_hours or 0
@@ -1961,8 +1965,9 @@ class HRAttendance(models.Model):
             date_out = context_timestamp(self, from_string(attendance.check_out)).replace(second=0)
 
             ob_leaves = attendance.leave_ids.filtered(lambda l: l.holiday_status_id.is_ob)
-            overtime_start = context_timestamp(self, from_string(attendance.overtime_id.start_time)).replace(second=0)
-            overtime_end = context_timestamp(self, from_string(attendance.overtime_id.end_time)).replace(second=0)
+            if attendance.overtime_id:
+                overtime_start = context_timestamp(self, from_string(attendance.overtime_id.start_time)).replace(second=0)
+                overtime_end = context_timestamp(self, from_string(attendance.overtime_id.end_time)).replace(second=0)
             leave_date_in = [date_in]
             leave_date_out = [date_out]
             for leave in ob_leaves:
@@ -1972,17 +1977,43 @@ class HRAttendance(models.Model):
             date_out = max(leave_date_out)
             holidays = attendance.reg_holiday_ids + attendance.spl_holiday_ids
             regular_holiday_hours = 0
+            regular_holiday_ot_hours = 0
             special_holiday_hours = 0
+            special_holiday_ot_hours = 0
             for holiday in holidays:
                 hours = 0
                 if holiday.holiday_type == 'regular':
-                    holiday_start = (context_timestamp(self, from_string(holiday.holiday_start))).replace(second=0)
-                    holiday_end = (context_timestamp(self, from_string(holiday.holiday_end))).replace(second=0)
-                    regular_holiday_hours += (min([date_out, overtime_end, holiday_end]) - max([date_in, overtime_start, holiday_start])).total_seconds() / 3600.0
+                    # holiday_start = (context_timestamp(self, from_string(holiday.holiday_start))).replace(second=0)
+                    # holiday_end = (context_timestamp(self, from_string(holiday.holiday_end))).replace(second=0)
+                    if attendance.overtime_id:
+                        regular_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0
+                        regular_holiday_ot_hours = (min([overtime_end]) - max([overtime_start])).total_seconds() / 3600.0
+                        if regular_holiday_hours >= 9.0:
+                            regular_holiday_hours = 8.0
+                        else:
+                            regular_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0
+                    else:
+                        regular_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0
+                        if regular_holiday_hours >= 9.0:
+                            regular_holiday_hours = 8.0
+                        else:
+                            regular_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0
                 if holiday.holiday_type == 'special':
-                    holiday_start = (context_timestamp(self, from_string(holiday.holiday_start))).replace(second=0)
-                    holiday_end = (context_timestamp(self, from_string(holiday.holiday_end))).replace(second=0)
-                    special_holiday_hours += (min([date_out, overtime_end, holiday_end]) - max([date_in, overtime_start, holiday_start])).total_seconds() / 3600.0
+                    # holiday_start = (context_timestamp(self, from_string(holiday.holiday_start))).replace(second=0)
+                    # holiday_end = (context_timestamp(self, from_string(holiday.holiday_end))).replace(second=0)
+                    if attendance.overtime_id:
+                        special_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0
+                        special_holiday_ot_hours = (min([overtime_end]) - max([overtime_start])).total_seconds() / 3600.0
+                        if special_holiday_hours >= 9.0:
+                            special_holiday_hours = 8.0
+                        else:
+                            special_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0
+                    else:
+                        special_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0
+                        if special_holiday_hours >= 9.0:
+                            special_holiday_hours = 8.0
+                        else:
+                            special_holiday_hours = (min([date_out]) - max([date_in])).total_seconds() / 3600.0                    
             if attendance.overtime_id.with_break:
                 ot_break_period = attendance.overtime_id.break_period + attendance.overtime_id.break_period2
                 if attendance.reg_holiday_ids and attendance.spl_holiday_ids:
@@ -1994,7 +2025,11 @@ class HRAttendance(models.Model):
                 else:
                     special_holiday_hours = special_holiday_hours - ot_break_period
                     regular_holiday_hours = regular_holiday_hours - ot_break_period
-            return {'regular_holiday_hours': regular_holiday_hours > 0 and regular_holiday_hours or 0, 'special_holiday_hours': special_holiday_hours > 0 and special_holiday_hours or 0}
+            return {
+                'regular_holiday_hours': regular_holiday_hours > 0 and regular_holiday_hours or 0,
+                'regular_holiday_ot_hours': regular_holiday_ot_hours > 0 and regular_holiday_ot_hours or 0,
+                'special_holiday_hours': special_holiday_hours > 0 and special_holiday_hours or 0,
+                'special_holiday_ot_hours': special_holiday_ot_hours > 0 and special_holiday_ot_hours or 0}            
 
     def calculate_overtime_fields_with_ob(self):
         actual_rest_day_overtime_rendered_hours = 0
