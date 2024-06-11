@@ -411,19 +411,19 @@ class HRAttendance(models.Model):
             check_in = fields.Datetime.from_string(self.check_in)
             check_out = fields.Datetime.from_string(self.check_out)
             duration = (check_out - check_in).total_seconds() / 3600.0
-            if duration > 8:
+            if duration >= 8:
                 # If the duration is exceeds 8 hours, set rest_day_hours to 8 hours
-                self.rest_day_hours = 8
+                duration = 8
             else:
                 # If the duration is 8 hours or less, set rest_day_hours to the actual duration
-                self.rest_day_hours = duration
+                duration = duration - 1.0
 
             self.rest_day_hours = duration
             self.remarks = 'RD'
             # Only set the rest day overtime if it's rest day
             if overtime:
                 if duration > 8:
-                    self.rest_day_ot_hours = duration - 8.0
+                    self.rest_day_ot_hours = overtime.hours_requested - 8.0
         else:
             # Only set the self.overtime_id if it's not rest day
             self.overtime_id = overtime.id
