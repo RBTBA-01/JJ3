@@ -46,48 +46,7 @@ def intersection_list(list1, list2):
 class LeavesAutomate(models.Model):
     _inherit = 'hr.holidays'
 
-    # @api.multi
-    # def action_approve(self):
-    #     # raise ValidationError(self.id)      
 
-    #     if self.date_from and self.date_to:
-    #         y = self.env['hr.attendance'].create({
-    #             'employee_id': self.employee_id.id,
-    #             'check_in': self.date_from,
-    #             'check_out': self.date_to,
-    #         })
-
-    #         y.write({'leave_ids': [(4, self.id)],
-    #                  'date_approved': fields.Datetime.now()})
-
-    #     x = super(LeavesAutomate, self).action_approve()
-    #     return x
-
-
-# class LeavesAutomate(models.Model):
-#     _inherit = 'hr.holidays'
-
-#     @api.multi
-#     def automate_leaves(self):
-#         leaves_dates = []
-#         # check_list = []
-#         # get_days_attendance = []
-#         # get_attendance = self.env['hr.attendance'].search([('employee_id', '=', self.employee_id.id)])
-#         date_from_converted = datetime.strptime(str(self.date_from), '%Y-%m-%d %H:%M:%S')
-#         date_to_converted = datetime.strptime(str(self.date_to), '%Y-%m-%d %H:%M:%S')
-#         # date_from_hour = datetime.strptime(str(self.date_from), '%Y-%m-%d %H:%M:%S').time()
-#         get_leave_dates = get_dates_leaves(date_from_converted, date_to_converted)
-
-#         for leave_days in get_leave_dates:
-#             # leave_dates_combine = datetime.combine(leave_days.date(), date_from_hour)
-#             # leaves_dates.append(leave_days.date())
-#             if date.today() == leave_days:
-#                 y = self.env['hr.attendance'].create({
-#                     'employee_id': self.employee_id.id,
-#                     'check_in': str(leave_days),
-#                     'check_out': str(leave_days + timedelta(hours=8)),
-#                 })
-#                 y.write({'leave_ids': [(4, self.id)]})
 
 
 class AdditionalTables(models.Model):
@@ -245,33 +204,69 @@ class SalaryRulesAdditional(models.Model):
 
 
 # test model for salary rules
-# class TestModel(models.Model):
-#     _inherit = 'hr.payslip'
+class InheritEmployee(models.Model):
+    _inherit = 'hr.employee'
+    @api.depends('attendance_ids')
+    def _compute_last_attendance_id(self):
+        for employee in self:
+            if employee.attendance_ids:
+                today_date = fields.Date.today()
+                date_last = employee.attendance_ids and employee.attendance_ids[0] or False
+                attendance_updated = []
+                if datetime.strptime(today_date, '%Y-%m-%d').date() < datetime.strptime(date_last.check_in, '%Y-%m-%d %H:%M:%S').date():
+                    
+                    for x in employee.attendance_ids:
+                        check_in_date = datetime.strptime(x.check_in, '%Y-%m-%d %H:%M:%S').date()
+                        check_today = datetime.strptime(today_date, '%Y-%m-%d').date()
+                        if check_in_date <= check_today:
+                            attendance_updated.append(x)
+                    sorted_date_lesser = sorted(attendance_updated, key=lambda x: x.check_in, reverse=True)
+                    employee.last_attendance_id = sorted_date_lesser and sorted_date_lesser[0] or False
+                else:
+                    employee.last_attendance_id = employee.attendance_ids and employee.attendance_ids[0] or False
+                    
+    @api.constrains('check_in', 'check_out', 'employee_id')
+    def _check_validity(self):
+        """ Verifies the validity of the attendance record compared to the others from the same employee.
+            For the same employee we must have :
+                * maximum 1 "open" attendance record (without check_out)
+                * no overlapping time slices with previous employee records
+        """
+        for attendance in self:
+            # we take the latest attendance before our check_in time and check it doesn't overlap with ours
+            last_attendance_before_check_in = self.env['hr.attendance'].search([
+                ('employee_id', '=', attendance.employee_id.id),
+                ('check_in', '<=', attendance.check_in),
+                ('id', '!=', attendance.id),
+            ], order='check_in desc', limit=1)
+            if last_attendance_before_check_in and last_attendance_before_check_in.check_out and last_attendance_before_check_in.check_out > attendance.check_in:
+                raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
+                    'empl_name': attendance.employee_id.name_related,
+                    'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(attendance.check_in))),
+                })
 
-
-class InheritAttendance(models.Model):
-    _inherit = 'hr.attendance'
-
-#Creation of new field for holiday rest day overtime
-    sp_hol_rest_day_hours = fields.Float('Special Holiday Hours', store=True, compute='_compute_sp_rest')
-    sp_hol_rest_day_hours_ot = fields.Float('Special Holiday Hours', store=True, compute='_compute_sp_rest')
-
-
-    @api.depends('employee_id', 'check_in', 'check_out',
-                 'work_time_line_id', 'is_absent',
-                 'overtime_id', 'overtime_id.rest_day_overtime',
-                 'overtime_id.start_time', 'overtime_id.end_time', 'leave_ids',
-                 'leave_ids.state', 'leave_ids.date_from', 'leave_ids.date_to',
-                 'overtime_id.state', 'request_change_id', 'request_change_id.state',
-                 'reg_holiday_ids.holiday_start', 'reg_holiday_ids.holiday_end',
-                 'reg_holiday_ids', 'reg_holiday_ids.holiday_type',
-                 'spl_holiday_ids.holiday_start', 'spl_holiday_ids.holiday_end',
-                 'spl_holiday_ids', 'spl_holiday_ids.holiday_type', 'rest_day_overtime',
-                 'is_holiday', 'is_leave', 'is_suspended')
-    def _compute_sp_rest(self):
-        if self.spl_holiday_ids and self.overtime_id:
-            if self.overtime_id.hours_requested <= 8:
-                self.sp_hol_rest_day_hours = self.overtime_id.hours_requested
+            if not attendance.check_out:
+                # if our attendance is "open" (no check_out), we verify there is no other "open" attendance
+                no_check_out_attendances = self.env['hr.attendance'].search([
+                    ('employee_id', '=', attendance.employee_id.id),
+                    ('check_out', '=', False),
+                    ('id', '!=', attendance.id),
+                ], order='check_in desc', limit=1)
+                if no_check_out_attendances:
+                    raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee hasn't checked out since %(datetime)s") % {
+                        'empl_name': attendance.employee_id.name_related,
+                        'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(no_check_out_attendances.check_in))),
+                    })
             else:
-                self.sp_hol_rest_day_hours = 8
-                self.sp_hol_rest_day_hours_ot = self.overtime_id.hours_requested - 8
+                # we verify that the latest attendance with check_in time before our check_out time
+                # is the same as the one before our check_in time computed before, otherwise it overlaps
+                last_attendance_before_check_out = self.env['hr.attendance'].search([
+                    ('employee_id', '=', attendance.employee_id.id),
+                    ('check_in', '<', attendance.check_out),
+                    ('id', '!=', attendance.id),
+                ], order='check_in desc', limit=1)
+                if last_attendance_before_check_out and last_attendance_before_check_in != last_attendance_before_check_out:
+                    raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
+                        'empl_name': attendance.employee_id.name_related,
+                        'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(last_attendance_before_check_out.check_in))),
+                    })

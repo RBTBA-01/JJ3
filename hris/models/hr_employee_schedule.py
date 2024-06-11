@@ -1,6 +1,6 @@
 #-*- coding:utf-8 -*-
 
-from odoo import models,api,fields
+from odoo import models, api, fields, _
 from odoo.exceptions import ValidationError, UserError
 
 class HREmployeeScheduleWorkTime(models.Model):
@@ -65,6 +65,29 @@ class HREmployeeScheduleWorkTime(models.Model):
     def btn_disapproved(self):
         self.action_disapproved()
     
+    @api.onchange('employee_id')
+    def _onchange_employee_info(self):
+        for rec in self:
+            if rec.employee_id:
+                emp = rec.employee_id
+                self.name = emp.name
+                self.employee_num = emp.employee_num
+                self.department_id = emp.department_id
+            else:
+                self.name = False
+                self.employee_num = False
+                self.department_id = False
+
+    @api.onchange('schedule_type')
+    def _onchange_schedule_type(self):
+        if self.schedule_type == 'flexible':
+            self.night_shift = False
+    
+    @api.constrains('schedule_type','night_shift')
+    def _restrict_flexible(self):
+        if self.schedule_type == 'flexible' and self.night_shift:
+            raise ValidationError(_("You cannot set 'Graveyard Shift' if the schedule type is 'Flexible'"))
+        
     start_date = fields.Datetime('Start Date', required=True)
     end_date = fields.Datetime('End Date', required=True)
     grace_period = fields.Float('Grace Period', required=True)

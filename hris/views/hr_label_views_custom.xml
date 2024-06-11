@@ -1,49 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-		<!--employee  module view -->
-		<!-- double value ratings (error) -->
-	    <record model="ir.ui.view" id="view_employee_inherit_form_view2">
-	        <field name="name">hr.employee inherit</field>
-	        <field name="model">hr.employee</field>
-	        <field name="inherit_id" ref="employee_kra.view_employee_inherit_form_view"/>
-	        <field name="arch" type="xml">
-	          <xpath expr="//button[@name='action_value_rating_tree_view']" position="replace">
-	                <button class="oe_inline oe_stat_button" type="object" name="action_value_rating_tree_view" icon="fa-line-chart" groups="hris.group_hr_manager">
-	                    <field string="Competencies" name="value_rating_count" widget="statinfo" />
-	                </button>
-	            </xpath>
-	        </field>
-	    </record>
-		<record id="hr_employee_related_user" model="ir.ui.view">
-            <field name="name">hr.employee.related.user</field>
+        <!--employee  module view -->
+        <!-- double value ratings (error) -->
+        <record model="ir.ui.view" id="view_employee_inherit_form_view2">
+            <field name="name">hr.employee inherit</field>
             <field name="model">hr.employee</field>
-            <field name="inherit_id" ref="hr.view_employee_form"/>
+            <field name="inherit_id" ref="employee_kra.view_employee_inherit_form_view" />
             <field name="arch" type="xml">
-                  <xpath expr="//field[@name='user_id']" position="attributes">
-                      <attribute name="string">User Account</attribute>
-                      <attribute name="options">{'no_open':True}</attribute>
-                  </xpath>
-                  
+                <xpath expr="//button[@name='action_value_rating_tree_view']" position="replace">
+                    <button class="oe_inline oe_stat_button" type="object" name="action_value_rating_tree_view" icon="fa-line-chart" groups="hris.group_hr_manager">
+                        <field string="Competencies" name="value_rating_count" widget="statinfo" />
+                    </button>
+                </xpath>
             </field>
         </record>
-
-		<!-- leave module view -->
+        <record id="hr_employee_related_user" model="ir.ui.view">
+            <field name="name">hr.employee.related.user</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr.view_employee_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='user_id']" position="attributes">
+                    <attribute name="string">User Account</attribute>
+                    <attribute name="options">{'no_open':True}</attribute>
+                </xpath>
+            </field>
+        </record>
+        <!-- leave module view -->
         <record id="edit_holiday_new_company_fields" model="ir.ui.view">
-           <field name="name">hr.holidays.company.fields</field>
-           <field name="model">hr.holidays</field>
-           <field name="inherit_id" ref="hr_holidays.edit_holiday_new"/>
-           <field name="arch" type="xml">
+            <field name="name">hr.holidays.company.fields</field>
+            <field name="model">hr.holidays</field>
+            <field name="inherit_id" ref="hr_holidays.edit_holiday_new" />
+            <field name="arch" type="xml">
                 <xpath expr="//button[4]" position="attributes">
                     <attribute name="string">Disapprove</attribute>
                     <attribute name="attrs">{'invisible': ['|', ('hr_payslip_id', '!=', False)]}</attribute>
-                    <attribute name="groups" ref="hr.group_hr_user"/>
+                    <attribute name="groups" ref="hr.group_hr_user" />
                 </xpath>
-                <field name='payslip_status' position="after">
-                    <field name="hr_payslip_id" readonly="1"/>
+                <field name="payslip_status" position="after">
+                    <field name="hr_payslip_id" readonly="1" />
                 </field>
                 <xpath expr="//field[@name='employee_id']" position="after" options="{'no_open':True, 'no_create_edit':True, 'no_create':True}">
-                   <field name="company_id" options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" attrs="{'readonly': [('hr_payslip_id', '!=', False)]}"/>
+                    <field name="company_id" options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" attrs="{'readonly': [('hr_payslip_id', '!=', False)]}" />
                 </xpath>
                 <xpath expr="//field[@name='process_type']" position="attributes">
                     <attribute name="invisible">True</attribute>
@@ -51,91 +49,89 @@
                 <field name="report_note" position="attributes">
                     <attribute name="attrs">{'readonly': [('hr_payslip_id', '!=', False)]}</attribute>
                 </field>
-           </field>
-       	</record>
-
-		<record id="edit_holiday_status_form_leave_type" model="ir.ui.view">
+            </field>
+        </record>
+        <record id="edit_holiday_status_form_leave_type" model="ir.ui.view">
             <field name="name">hr.holidays.status.form.leave.type</field>
             <field name="model">hr.holidays.status</field>
-            <field name="inherit_id" ref="hr_holidays.edit_holiday_status_form"/>
+            <field name="inherit_id" ref="hr_holidays.edit_holiday_status_form" />
             <field name="arch" type="xml">
-              <xpath expr="//field[@name='double_validation']" position="attributes">
-                     <attribute name="invisible">True</attribute>
-              </xpath>
-              <xpath expr="//field[@name='categ_id']" position="attributes">
-                     <attribute name="invisible">True</attribute>
-              </xpath>
+                <xpath expr="//field[@name='double_validation']" position="attributes">
+                    <attribute name="invisible">True</attribute>
+                </xpath>
+                <xpath expr="//field[@name='categ_id']" position="attributes">
+                    <attribute name="invisible">True</attribute>
+                </xpath>
             </field>
         </record>
-
-      <record id="edit_hr_contract_salary" model="ir.ui.view">
+        <record id="edit_hr_contract_salary" model="ir.ui.view">
             <field name="name">hr.contract.salary and benefits</field>
             <field name="model">hr.contract</field>
-            <field name="inherit_id" ref="hr_contract.hr_contract_view_form"/>
+            <field name="inherit_id" ref="hr_contract.hr_contract_view_form" />
             <field name="arch" type="xml">
-                  <xpath expr="//group[@name='salary_and_advantages']" position="attributes">
-                         <attribute name="string">Salary and Benefits</attribute>
-                  </xpath>
+                <xpath expr="//group[@name='salary_and_advantages']" position="attributes">
+                    <attribute name="string">Salary and Benefits</attribute>
+                </xpath>
             </field>
         </record>
-
-		<!--payroll views -->
-		<record model="ir.ui.view" id="hr_payslip_run_form_edit">
-	        <field name="name">hr.employee.payslips</field>
-	        <field name="model">hr.payslip.run</field>
-	        <field name="inherit_id" ref="hr_payroll.hr_payslip_run_form"/>
-	        <field name="arch" type="xml">
-	          	<xpath expr="//button[2]" position="attributes">
-	              <attribute name="string">Process Payroll</attribute>
-	            </xpath>
-				<xpath expr="//separator[1]" position="replace">
-    	  			 <separator string="Payroll" colspan="4" />
-    	        </xpath>
-				<xpath expr="//button[@name='close_payslip_run']" position="replace">
-					<button name="close_payslip_run" type="object" confirm="Do you want to POST? Click OK to proceed." string="POST" states="draft" class="oe_highlight"/>
-				</xpath>
-	        </field>
-	    </record>
-		<record id="hr_payroll_confirmation_button" model="ir.ui.view">
+        <!--payroll
+        views -->
+        <record model="ir.ui.view" id="hr_payslip_run_form_edit">
+            <field name="name">hr.employee.payslips</field>
+            <field name="model">hr.payslip.run</field>
+            <field name="inherit_id" ref="hr_payroll.hr_payslip_run_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//button[2]" position="attributes">
+                    <attribute name="string">Process Payroll</attribute>
+                </xpath>
+                <xpath expr="//separator[1]" position="replace">
+                    <separator string="Payroll" colspan="4" />
+                </xpath>
+                <xpath expr="//button[@name='close_payslip_run']" position="replace">
+                    <button name="close_payslip_run" type="object" confirm="Do you want to POST? Click OK to proceed." string="POST" states="draft" class="oe_highlight" />
+                </xpath>
+            </field>
+        </record>
+        <record id="hr_payroll_confirmation_button" model="ir.ui.view">
             <field name="name">hr.payslip.confirmation.button</field>
             <field name="model">hr.payslip</field>
-            <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+            <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form" />
             <field name="arch" type="xml">
                 <xpath expr="//button[@name='action_payslip_done']" position="attributes">
                     <attribute name="confirm">Do you want to CONFIRM? Click OK to proceed.</attribute>
                 </xpath>
                 <xpath expr="//button[@name='action_payslip_cancel']" position="attributes">
-                       <attribute name="confirm">Do you want to CANCEL? Click OK to proceed.</attribute>
-                       <attribute name="string">CANCEL PAYROLL</attribute>
+                    <attribute name="confirm">Do you want to CANCEL? Click OK to proceed.</attribute>
+                    <attribute name="string">CANCEL PAYROLL</attribute>
                 </xpath>
                 <xpath expr="//field[@name='input_line_ids']" position="replace">
-                    <field name="input_line_ids" colspan="4" nolabel="1" >
-                          <tree string="Input Data" editable="bottom">
-                              <field name="name" />
-                              <field name="code" invisible="True"/>
-                               <field name="adjustment_type"/>
-                              <field name="contract_id" />
-                              <field name="amount"/>
-                              <field name="sequence" invisible="True"/>
-                          </tree>
-                       </field>
+                    <field name="input_line_ids" colspan="4" nolabel="1">
+                        <tree string="Input Data" editable="bottom">
+                            <field name="name" />
+                            <field name="code" invisible="True" />
+                            <field name="adjustment_type" />
+                            <field name="contract_id" />
+                            <field name="amount" />
+                            <field name="sequence" invisible="True" />
+                        </tree>
+                    </field>
                 </xpath>
                 <xpath expr="//form/sheet/notebook/page/separator[2]" position="replace">
-                    <separator string="Adjustments"/>
+                    <separator string="Adjustments" />
                 </xpath>
             </field>
-       </record>
-<!-- 	   <record model="ir.ui.view" id="extended_records_company_ids">
-       		<field name="name">Government ID Numbers</field>
-       		<field name="model">res.company</field>
-       		<field name="inherit_id" ref="base.view_company_form"/>
-       		<field name="arch" type="xml">
-         		<xpath expr="//field[@name='vat']" position="after">
-             		<field name="sss_num"/>
-             		<field name="philhealth_num"/>
-             		<field name="pagibig_num"/>
-           		</xpath>
-          </field>
-       </record> -->
+        </record>
+        <record model="ir.ui.view" id="extended_records_company_ids">
+            <field name="name">Government ID Numbers</field>
+            <field name="model">res.company</field>
+            <field name="inherit_id" ref="base.view_company_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='vat']" position="after">
+                    <field name="sss_num" />
+                    <field name="philhealth_num" />
+                    <field name="pagibig_num" />
+                </xpath>
+            </field>
+        </record>
     </data>
 </odoo>

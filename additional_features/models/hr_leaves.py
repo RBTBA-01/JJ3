@@ -67,7 +67,6 @@ class HrHolidaysExtended(models.Model):
     def action_approve(self):
         """Check notice period and lockout period before approving."""
         res = super(HrHolidaysExtended, self).action_approve()
-
         self.leave_approve_date = fields.Datetime.now()
 
         for record in self:
@@ -289,7 +288,7 @@ class HrLeaveType(models.Model):
             if not record.year:
                 years = date.today().year
             else:
-                years = date.today().year
+                years = record.year
             if record.month and record.days:
                 expiration = "%s-%s-%s"%(years,record.month,record.days.month_date)
                 record.expiration_date = expiration
