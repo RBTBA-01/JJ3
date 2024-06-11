@@ -19,6 +19,7 @@
                     </div>
                     <field name="config_ids" widget="many2many_tags" options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" />
                     <!-- </group> -->
+                    <field name="company_id" options="{'no_open':True, 'no_create_edit':True, 'no_create':True}" />
                 </group>
                 <group states="done">
                     <field name="name" colspan="4" invisible="1" />

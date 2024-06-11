@@ -19,7 +19,8 @@ class HRPayrollRegistry(models.TransientModel):
         
         #xlwt.add_palette_colour("custom_colour", 0x21)
         work_book.set_colour_RGB(0x21, 243, 20, 28)
-        company = self.env['res.company']._company_default_get('hris')
+        # company = self.env['res.company']._company_default_get('hris')
+        company = self.company_id
 
         header_content_style = xlwt.easyxf("font: name Helvetica size 25 px, bold 1, height 170;")
         sub_header_style = xlwt.easyxf("font: name Helvetica size 10 px, bold 1, height 170;")
@@ -135,7 +136,7 @@ class HRPayrollRegistry(models.TransientModel):
             'target': 'new',
         }
 
-    @api.depends('payroll_period_from_id','payroll_period_to_id')
+    @api.depends('payroll_period_from_id','payroll_period_to_id', 'company_id')
     def get_employees(self):
         for rec in self:
             date_from = rec.payroll_period_from_id.start_date
@@ -143,7 +144,8 @@ class HRPayrollRegistry(models.TransientModel):
             payslips = self.env['hr.payslip'].search([('date_from', '>=', date_from),
                                                       ('date_to','<=', date_to),
                                                       ('state', 'in', ['draft', 'done']),
-                                                      ('credit_note','=', False)
+                                                      ('credit_note','=', False),
+                                                      ('id_company', '=', rec.company_id.id)
                                                     ])
             rec.employee_ids = [(6, 0, payslips.mapped('employee_id.id'))]
 
@@ -170,6 +172,7 @@ class HRPayrollRegistry(models.TransientModel):
     date_to = fields.Date(string='End Date', required=True, default=_get_default_end_date)
     employee_ids = fields.Many2many('hr.employee', 'payroll_registry_rel', 'payroll_registry_id', 'employee_id', string='Employees', required=True,
                                     compute='get_employees',readonly=False, store=True)
+    company_id = fields.Many2one('res.company', string="Company", required=True)
     report = fields.Binary('Prepared file', filters='.xls', readonly=True)
     name = fields.Char('File Name', size=32)
     state = fields.Selection([('draft', 'Draft'), ('done', ' Done')], 'State', default='draft')
