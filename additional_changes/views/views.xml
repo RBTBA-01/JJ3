@@ -28,19 +28,5 @@
             </xpath>
           </field>
       </record> -->
-    <!-- ADD FIELD IN HR ATTENDANCE FOR HOLIDAY AND REST DAYS -->
-    <record id="inherit_attendance_form_rest" model="ir.ui.view">
-      <field name="name">inherit.attendance.form.rest</field>
-      <field name="model">hr.attendance</field>
-      <field name="inherit_id" ref="hris.hr_attendance_change_view_form" />
-      <field name="arch" type="xml">
-        <xpath expr="//field[@name='night_diff_ot_hours']" position="before">
-          <label for="sp_hol_rest_day_hours" string="Special Holiday Rest Day" />
-          <div class=" o_row">
-            <field name="sp_hol_rest_day_hours" />
-          <field name="sp_hol_rest_day_hours_ot" /> in excess of 8 hours </div>
-        </xpath>
-      </field>
-    </record>
   </data>
 </odoo>

@@ -20,7 +20,7 @@
                     <field name="checkin_location_mismatched"/>
                     <field name="checkout_location_mismatched"/>
                 </group>
-                <group>         
+                <!-- <group>         
                     <separator string="Remarks" />
                 </group>
                 <group>
@@ -32,7 +32,7 @@
                     <span class="oe_inline">
                         <field name="checkout_remarks" />
                     </span>
-                </group>
+                </group> -->
             </xpath>
         </field>
     </record>

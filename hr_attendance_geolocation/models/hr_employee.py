@@ -61,7 +61,7 @@ class HrEmployee(models.Model):
                     'check_in_latitude': location[0],
                     'check_in_longitude': location[1],
                     'checkin_location_mismatched': location_mismatched,
-                    'checkin_remarks': remarks
+                    # 'checkin_remarks': remarks
                 })
             else:
                 if self.check_out_latitude == location[0] and self.check_out_longitude == location[1]:
@@ -72,7 +72,7 @@ class HrEmployee(models.Model):
                     'check_out_latitude': location[0],
                     'check_out_longitude': location[1],
                     'checkout_location_mismatched': location_mismatched,
-                    'checkout_remarks': remarks
+                    # 'checkout_remarks': remarks
                 })               
             # else:
             #     res.write({
