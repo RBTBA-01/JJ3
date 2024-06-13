@@ -32,5 +32,3 @@ class HrAttendance(models.Model):
     )
     checkin_location_mismatched = fields.Boolean('Check In location mismatched')
     checkout_location_mismatched = fields.Boolean('Check Out location mismatched')
-    checkin_remarks = fields.Char('Check-in Remarks', store=True)
-    checkout_remarks = fields.Char('Check-out Remarks', store=True)
