@@ -6,29 +6,19 @@
         <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//form/sheet/group" position="after">
-                <group>
-                    <group name="locations" col="2">
-                        <label for="check_in_location" string="Check-in Location"/>
-                        <span class="oe_inline">
-                            Latitude: <field name="check_in_latitude" nolabel="1"/><br/>
-                            Longitude: <field name="check_in_longitude" nolabel="1"/>
-                        </span>
-                        <label for="check_out_location" string="Check-out Location"/>
-                        <span class="oe_inline">
-                            Latitude: <field name="check_out_latitude" nolabel="1"/><br/>
-                            Longitude: <field name="check_out_longitude" nolabel="1"/>
-                        </span>
-                        <field name="checkin_location_mismatched"/>
-                        <field name="checkout_location_mismatched"/>
-                    </group>
-                    <group>
-                        <field name="extra_checkout_ids">
-                            <tree>
-                                <field name="date_checkout"/>
-                                <field name="reason"/>
-                            </tree>
-                        </field>
-                    </group>
+                <group name="locations" col="2">
+                    <label for="check_in_location" string="Check-in Location"/>
+                    <span class="oe_inline">
+                        Latitude: <field name="check_in_latitude" nolabel="1"/><br/>
+                        Longitude: <field name="check_in_longitude" nolabel="1"/>
+                    </span>
+                    <label for="check_out_location" string="Check-out Location"/>
+                    <span class="oe_inline">
+                        Latitude: <field name="check_out_latitude" nolabel="1"/><br/>
+                        Longitude: <field name="check_out_longitude" nolabel="1"/>
+                    </span>
+                    <field name="checkin_location_mismatched"/>
+                    <field name="checkout_location_mismatched"/>
                 </group>
             </xpath>
         </field>
