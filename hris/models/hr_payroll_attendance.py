@@ -416,7 +416,7 @@ class HRAttendance(models.Model):
                 duration = 8
             else:
                 # If the duration is 8 hours or less, set rest_day_hours to the actual duration
-                duration = duration - 1.0
+                duration = duration
 
             self.rest_day_hours = duration
             self.remarks = 'RD'
@@ -1740,6 +1740,7 @@ class HRAttendance(models.Model):
                 date_in = (context_timestamp(self, from_string(attendance.check_in))).replace(second=0)
                 date_out = (context_timestamp(self, from_string(attendance.check_out))).replace(second=0)
                 if attendance.leave_ids and ob_leaves:
+                    attendance.overtime_hours = attendance.overtime_id.hours_requested
                     for leave in ob_leaves:
                         ob_date_in = (context_timestamp(self, from_string(leave.date_from))).replace(second=0)
                         ob_date_out = (context_timestamp(self, from_string(leave.date_to))).replace(second=0)
@@ -1793,8 +1794,8 @@ class HRAttendance(models.Model):
                             overtime_hours = overtime_hours - restday_overtime
                         attendance.overtime_hours = overtime_hours > 0 and overtime_hours or 0
                     else:
-                        if attendance.leave_ids and ob_leaves:
-                            actual_rest_day_overtime_rendered_hours = attendance.calculate_overtime_fields_with_ob()
+                        # if attendance.leave_ids and ob_leaves:
+                            # actual_rest_day_overtime_rendered_hours = attendance.calculate_overtime_fields_with_ob()
                             # overtime = actual_rest_day_overtime_rendered_hours
                         # if overtime > TIME_TO_RENDER:
                         #     holiday_working_hours = TIME_TO_RENDER
@@ -1844,7 +1845,6 @@ class HRAttendance(models.Model):
                                 elif overtime_hours and (reg_holiday_hours or spl_holiday_hours) and overtime_hours > (reg_holiday_hours + spl_holiday_hours):
                                     attendance.overtime_hours = overtime_hours - (reg_holiday_hours + spl_holiday_hours)
                 else:
-                    attendance.overtime_hours = 0
                     if attendance.reg_holiday_ids or attendance.spl_holiday_ids:
                         attendance.is_holiday = True
             if attendance.work_time_line_id and not ob_leaves and not ((actual_time_out - actual_time_in).total_seconds() / 3600.0) > 1:
