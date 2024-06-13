@@ -42,6 +42,14 @@ def checking_holiday_setting(holiday_date_data):
 def intersection_list(list1, list2):
     return list(set(list1) & set(list2))
 
+class ResLang(models.Model):
+    _inherit = 'res.lang'
+
+    @api.model
+    def update_time_format(self):
+        lang = self.search([('code', '=', 'en_US')], limit=1)
+        if lang:
+            lang.time_format = '%I:%M:%S %p'
 
 class LeavesAutomate(models.Model):
     _inherit = 'hr.holidays'
