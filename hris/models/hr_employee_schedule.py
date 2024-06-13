@@ -98,8 +98,8 @@ class HREmployeeScheduleWorkTime(models.Model):
                                                          "* Normal: Normal working time.\n"
                                                          "* Core-time: Core Time.")
     night_shift = fields.Boolean('Graveyard Shift', default=False)
-    name = fields.Char('Name', required=True)
-    employee_id = fields.Many2one('hr.employee', 'Employee')
+    name = fields.Char('Name')
+    employee_id = fields.Many2one('hr.employee', 'Employee', required=True)
     department_id = fields.Many2one('hr.department', 'Department',)
     employee_num = fields.Char(required=True, string="Employee Number")
 
