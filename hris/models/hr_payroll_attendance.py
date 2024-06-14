@@ -427,6 +427,7 @@ class HRAttendance(models.Model):
         else:
             # Only set the self.overtime_id if it's not rest day
             self.overtime_id = overtime.id
+            self.rest_day_hours = 0.0
 
     def convert_date(self, date_leave):
         date_time_leaves = datetime.strptime(date_leave, '%Y-%m-%d %H:%M:%S')
@@ -539,7 +540,7 @@ class HRAttendance(models.Model):
         """Set references on attendances."""
         if self.work_time_line_id:
             rest_day = False
-        if not self.work_time_line_id:
+        else:
             rest_day = True
 
         self.get_leaves_reference()
@@ -547,7 +548,7 @@ class HRAttendance(models.Model):
         self.get_overtime_reference(rest_day)
 
         # holidays or restday must have no work_time_line_id
-        # self.onchange_reference()
+        self.onchange_reference()
         self.onchange_temp()
         self.get_suspension()
 
@@ -776,7 +777,8 @@ class HRAttendance(models.Model):
                         # Get the earliest checkin
 #                         date_in = min(ob)
 
-                    earliest_in_hour, earliest_in_minute = float_time_convert(attendance.work_time_line_id.earliest_check_in)
+                    earliest_in_hour, earliest_in_minute = float_time_convert(
+                        attendance.work_time_line_id.earliest_check_in)
                     earliest_in = date_in.replace(hour=earliest_in_hour, minute=earliest_in_minute, second=0)
 
                     latest_in_hour, latest_in_minute = float_time_convert(attendance.work_time_line_id.latest_check_in)
@@ -785,11 +787,11 @@ class HRAttendance(models.Model):
                     if date_in < earliest_in:
                         required_in = earliest_in
 
-                    if earliest_in <= date_in <= latest_in:
+                    if date_in >= earliest_in and date_in <= latest_in:
                         required_in = date_in
 
                     if date_in >= latest_in:
-                        required_in = date_in
+                        required_in = latest_in
 
                 # check if night diff check in
                 required_in = get_intersection(date_in, date_out, required_in,
@@ -926,7 +928,7 @@ class HRAttendance(models.Model):
                                                seconds=0)
 
         NIGHT_DIFF_START = required_in
-        NIGHT_DIFF_END = required_in + timedelta(hours=8)
+        NIGHT_DIFF_END = required_in + timedelta(hours=7)
 
         # GET THE HOURS AND MINUTES FORMAT
         ndiff_start_time = NIGHT_DIFF_START.strftime('%H:%M')
@@ -947,6 +949,8 @@ class HRAttendance(models.Model):
 
             if worktime_line and NIGHT_DIFF_START < date_out <= NIGHT_DIFF_END:
                 rendered_hours = (date_out - max([NIGHT_DIFF_START, date_in])).total_seconds() / 3600.0
+                if worktime_line.break_period:
+                    rendered_hours -= worktime_line.break_period
 
             if date_in >= NIGHT_DIFF_END or date_out < NIGHT_DIFF_START:
                 rendered_hours = 0
@@ -1256,7 +1260,14 @@ class HRAttendance(models.Model):
             return
         for attendance in self:
             attendance_overtime = self.env['hr.attendance.overtime']
-            if not attendance.check_in and not attendance.check_out and not attendance.schedule_out and not attendance.schedule_in and attendance_overtime.offset:
+            last_attendance_before_check_in = self.env['hr.attendance'].search([
+                ('employee_id', '=', attendance.employee_id.id),
+                ('check_in', '<=', attendance.check_in),
+                ('id', '!=', attendance.id),
+            ], order='check_in desc', limit=1)            
+            if attendance.leave_ids and last_attendance_before_check_in and last_attendance_before_check_in.check_out and last_attendance_before_check_in.check_out > attendance.check_in:
+                continue          
+            elif not attendance.check_in and not attendance.check_out and not attendance.schedule_out and not attendance.schedule_in and attendance_overtime.offset:
                 # Checks if the creating of attendance is offset
                 if attendance_overtime.offset:
                     holidays = self.env['hr.holidays']
@@ -1264,70 +1275,47 @@ class HRAttendance(models.Model):
                 else:
                     raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time.") % {
                         'empl_name': attendance.employee_id.name_related,
-                    })           
-        return super(HRAttendance, self)._check_validity()
-
-    # @api.constrains('check_in', 'check_out', 'employee_id')
-    # def _check_validity(self):
-    #     """ Verifies the validity of the attendance record compared to the others from the same employee.
-    #         For the same employee we must have :
-    #             * maximum 1 "open" attendance record (without check_out)
-    #             * no overlapping time slices with previous employee records
-    #     """
-
-    #     if self.env.context.get('default_cron_schedule_time', False):
-    #         return
-    #     for attendance in self:
-    #         attendance_overtime = self.env['hr.attendance.overtime']
-    #         if not attendance.check_in and not attendance.check_out and not attendance.schedule_out and not attendance.schedule_in and attendance_overtime.offset:
-    #             # Checks if the creating of attendance is offset
-    #             if attendance_overtime.offset:
-    #                 holidays = self.env['hr.holidays']
-    #                 holidays._check_attendance_offset()
-    #             else:
-    #                 raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time.") % {
-    #                     'empl_name': attendance.employee_id.name_related,
-    #                 }) 
-    #     for attendance in self:
-    #         # we take the latest attendance before our check_in time and check it doesn't overlap with ours
-    #         last_attendance_before_check_in = self.env['hr.attendance'].search([
-    #             ('employee_id', '=', attendance.employee_id.id),
-    #             ('check_in', '<=', attendance.check_in),
-    #             ('id', '!=', attendance.id),
-    #         ], order='check_in desc', limit=1)
-    #         if last_attendance_before_check_in and last_attendance_before_check_in.check_out and last_attendance_before_check_in.check_out > attendance.check_in:
-    #             raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
-    #                 'empl_name': attendance.employee_id.name_related,
-    #                 'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(attendance.check_in))),
-    #             })
-
-    #         if not attendance.check_out:
-    #             # if our attendance is "open" (no check_out), we verify there is no other "open" attendance
-    #             no_check_out_attendances = self.env['hr.attendance'].search([
-    #                 ('employee_id', '=', attendance.employee_id.id),
-    #                 ('check_out', '=', False),
-    #                 ('id', '!=', attendance.id),
-    #             ], order='check_in desc', limit=1)
-    #             if no_check_out_attendances:
-    #                 raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee hasn't checked out since %(datetime)s") % {
-    #                     'empl_name': attendance.employee_id.name_related,
-    #                     'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(no_check_out_attendances.check_in))),
-    #                 })
-    #         else:
-    #             # we verify that the latest attendance with check_in time before our check_out time
-    #             # is the same as the one before our check_in time computed before, otherwise it overlaps
-    #             last_attendance_before_check_out = self.env['hr.attendance'].search([
-    #                 ('employee_id', '=', attendance.employee_id.id),
-    #                 ('check_in', '<', attendance.check_out),
-    #                 ('id', '!=', attendance.id),
-    #             ], order='check_in desc', limit=1)
-    #             if last_attendance_before_check_out and last_attendance_before_check_in != last_attendance_before_check_out:
-    #                 raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
-    #                     'empl_name': attendance.employee_id.name_related,
-    #                     'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(last_attendance_before_check_out.check_in))),
-    #                 })
-
-
+                    })
+            elif (
+                not attendance.check_in
+                and not attendance.check_out
+                and not attendance.schedule_out
+                and not attendance.schedule_in
+            ):
+                raise ValidationError(
+                    _(
+                        "Cannot create new attendance record for %(empl_name)s, the employee has no schedule time and check in time."
+                    )
+                    % {
+                        "empl_name": attendance.employee_id.name_related,
+                    }
+                )
+            elif not attendance.check_out:
+                # if our attendance is "open" (no check_out), we verify there is no other "open" attendance
+                no_check_out_attendances = self.env['hr.attendance'].search([
+                    ('employee_id', '=', attendance.employee_id.id),
+                    ('check_out', '=', False),
+                    ('id', '!=', attendance.id),
+                ], order='check_in desc', limit=1)
+                if no_check_out_attendances:
+                    raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee hasn't checked out since %(datetime)s") % {
+                        'empl_name': attendance.employee_id.name_related,
+                        'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(no_check_out_attendances.check_in))),
+                    })
+            else:
+                # we verify that the latest attendance with check_in time before our check_out time
+                # is the same as the one before our check_in time computed before, otherwise it overlaps
+                last_attendance_before_check_out = self.env['hr.attendance'].search([
+                    ('employee_id', '=', attendance.employee_id.id),
+                    ('check_in', '<', attendance.check_out),
+                    ('id', '!=', attendance.id),
+                ], order='check_in desc', limit=1)
+                if last_attendance_before_check_out and last_attendance_before_check_in != last_attendance_before_check_out:
+                    raise ValidationError(_("Cannot create new attendance record for %(empl_name)s, the employee was already checked in on %(datetime)s") % {
+                        'empl_name': attendance.employee_id.name_related,
+                        'datetime': fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(last_attendance_before_check_out.check_in))),
+                    })            
+        return True
 
     @api.multi
     def _compute_hide_check_time(self):
@@ -1794,8 +1782,8 @@ class HRAttendance(models.Model):
                             overtime_hours = overtime_hours - restday_overtime
                         attendance.overtime_hours = overtime_hours > 0 and overtime_hours or 0
                     else:
-                        # if attendance.leave_ids and ob_leaves:
-                            # actual_rest_day_overtime_rendered_hours = attendance.calculate_overtime_fields_with_ob()
+                        if attendance.leave_ids and ob_leaves:
+                            actual_rest_day_overtime_rendered_hours = attendance.calculate_overtime_fields_with_ob()
                             # overtime = actual_rest_day_overtime_rendered_hours
                         # if overtime > TIME_TO_RENDER:
                         #     holiday_working_hours = TIME_TO_RENDER
@@ -1806,45 +1794,8 @@ class HRAttendance(models.Model):
 #                             attendance.rest_day_hours = holiday_working_hours
 #                             attendance.rest_day_ot_hours = holiday_ot_working_hours
 #                         if attendance.work_time_line_id:
-
-                        if attendance.spl_holiday_ids or attendance.reg_holiday_ids:
-                            reg_holiday_hours = 0
-                            reg_holiday_ot_hours = 0
-                            spl_holiday_hours = 0
-                            spl_holiday_ot_hours = 0
-                            holiday_hours = attendance.calculate_holiday_hours()
-                            reg_holiday_hours = holiday_hours['regular_holiday_hours']
-                            reg_holiday_ot_hours = holiday_hours['regular_holiday_ot_hours']
-                            spl_holiday_hours = holiday_hours['special_holiday_hours']
-                            spl_holiday_ot_hours = holiday_hours['special_holiday_ot_hours']
-                            if reg_holiday_hours > HOURS_PER_DAY:
-                                reg_holiday_working_hours = HOURS_PER_DAY
-                                reg_holiday_ot_working_hours = reg_holiday_ot_hours
-                            else:
-                                reg_holiday_working_hours = reg_holiday_hours > 0 and reg_holiday_hours or 0
-                                reg_holiday_ot_working_hours = reg_holiday_ot_hours > 0 and reg_holiday_ot_hours or 0
-
-                            if spl_holiday_hours > HOURS_PER_DAY:
-                                spl_holiday_working_hours = HOURS_PER_DAY
-                                spl_holiday_ot_working_hours = spl_holiday_ot_hours
-                            else:
-                                spl_holiday_working_hours = spl_holiday_hours > 0 and spl_holiday_hours or 0
-                                spl_holiday_ot_working_hours = spl_holiday_ot_hours > 0 and spl_holiday_ot_hours or 0
-
-                            attendance.is_holiday = True
-                            attendance.sp_holiday_hours = attendance.spl_holiday_ids and spl_holiday_working_hours or 0
-                            attendance.sp_hday_ot_hours = attendance.spl_holiday_ids and spl_holiday_ot_working_hours or 0
-                            attendance.reg_holiday_hours = attendance.reg_holiday_ids and reg_holiday_working_hours or 0
-                            attendance.reg_hday_ot_hours = attendance.reg_holiday_ids and reg_holiday_ot_working_hours or 0
-                            # calculate overtime again with considering the holiday
-                            if attendance.work_time_line_id:
-                                if overtime_start_time >= holiday_end or overtime_end_time <= holiday_start:
-                                    attendance.overtime_hours = overtime_hours > 0 and overtime_hours or 0
-                                elif overtime_hours and not night_shift and holiday_start.date() != date_in.date():
-                                    attendance.overtime_hours = overtime_hours > 0 and overtime_hours or 0
-                                elif overtime_hours and (reg_holiday_hours or spl_holiday_hours) and overtime_hours > (reg_holiday_hours + spl_holiday_hours):
-                                    attendance.overtime_hours = overtime_hours - (reg_holiday_hours + spl_holiday_hours)
                 else:
+                    attendance.overtime_hours = 0
                     if attendance.reg_holiday_ids or attendance.spl_holiday_ids:
                         attendance.is_holiday = True
             if attendance.work_time_line_id and not ob_leaves and not ((actual_time_out - actual_time_in).total_seconds() / 3600.0) > 1:
@@ -1856,6 +1807,43 @@ class HRAttendance(models.Model):
                     attendance.absent_hours = TIME_TO_RENDER
             else:
                 attendance.is_absent = False
+            if attendance.spl_holiday_ids or attendance.reg_holiday_ids:
+                reg_holiday_hours = 0
+                reg_holiday_ot_hours = 0
+                spl_holiday_hours = 0
+                spl_holiday_ot_hours = 0
+                holiday_hours = attendance.calculate_holiday_hours()
+                reg_holiday_hours = holiday_hours['regular_holiday_hours']
+                reg_holiday_ot_hours = holiday_hours['regular_holiday_ot_hours']
+                spl_holiday_hours = holiday_hours['special_holiday_hours']
+                spl_holiday_ot_hours = holiday_hours['special_holiday_ot_hours']
+                if reg_holiday_hours > HOURS_PER_DAY:
+                    reg_holiday_working_hours = reg_holiday_hours
+                    reg_holiday_ot_working_hours = reg_holiday_ot_hours
+                else:
+                    reg_holiday_working_hours = reg_holiday_hours > 0 and reg_holiday_hours or 0
+                    reg_holiday_ot_working_hours = reg_holiday_ot_hours > 0 and reg_holiday_ot_hours or 0
+
+                if spl_holiday_hours > HOURS_PER_DAY:
+                    spl_holiday_working_hours = spl_holiday_hours
+                    spl_holiday_ot_working_hours = spl_holiday_ot_hours
+                else:
+                    spl_holiday_working_hours = spl_holiday_hours > 0 and spl_holiday_hours or 0
+                    spl_holiday_ot_working_hours = spl_holiday_ot_hours > 0 and spl_holiday_ot_hours or 0
+
+                attendance.is_holiday = True
+                attendance.sp_holiday_hours = attendance.spl_holiday_ids and spl_holiday_working_hours or 0
+                attendance.sp_hday_ot_hours = attendance.spl_holiday_ids and spl_holiday_ot_working_hours or 0
+                attendance.reg_holiday_hours = attendance.reg_holiday_ids and reg_holiday_working_hours or 0
+                attendance.reg_hday_ot_hours = attendance.reg_holiday_ids and reg_holiday_ot_working_hours or 0
+                # calculate overtime again with considering the holiday
+                if attendance.work_time_line_id and attendance.overtime_hours:
+                    if overtime_start_time >= holiday_end or overtime_end_time <= holiday_start:
+                        attendance.overtime_hours = overtime_hours > 0 and overtime_hours or 0
+                    elif overtime_hours and not night_shift and holiday_start.date() != date_in.date():
+                        attendance.overtime_hours = overtime_hours > 0 and overtime_hours or 0
+                    elif overtime_hours and (reg_holiday_hours or spl_holiday_hours) and overtime_hours > (reg_holiday_hours + spl_holiday_hours):
+                        attendance.overtime_hours = overtime_hours - (reg_holiday_hours + spl_holiday_hours)                
             if attendance.is_absent or attendance.is_suspended or actual_time_out <= required_in or actual_time_in >= required_out:
                 attendance.worked_hours = 0
             if not attendance.work_time_line_id or (not night_shift and attendance.is_holiday):
@@ -1921,23 +1909,17 @@ class HRAttendance(models.Model):
                     date_from <= date_in <= date_out <= date_to:
                 worked_leave_hours = 0
 
-            if date_from == date_to or (date_to - timedelta(hours=9)) == date_from:
-                if date_from < lunch_break:
-                    leave_hours += (min([lunch_break, date_to]) - max(
-                        [required_in, date_from])).total_seconds() / 3600.0
-                if lunch_break_period < required_out and date_to > lunch_break_period:
-                    leave_hours += (min([date_to, required_out]) - max(
-                        [lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
-                if lunch_break <= date_from <= lunch_break_period:
-                    leave_hours = (min([date_to, required_out]) - max(
-                        [date_from, lunch_break_period])).total_seconds() / 3600.0
-                if lunch_break <= date_from <= date_to <= lunch_break_period:
-                    leave_hours = 0
-            else:
-                leaves_duration = (date_to - date_from)
-                leave_days = (leaves_duration).days + float(leaves_duration.seconds) / 28800
-                leave_hours = round(leave_days) * 8.0
-
+            if date_from < lunch_break:
+                leave_hours += (min([lunch_break, date_to]) - max(
+                    [required_in, date_from])).total_seconds() / 3600.0
+            if lunch_break_period < required_out and date_to > lunch_break_period:
+                leave_hours += (min([date_to, required_out]) - max(
+                    [lunch_break_period, date_from, required_in])).total_seconds() / 3600.0
+            if lunch_break <= date_from <= lunch_break_period:
+                leave_hours = (min([date_to, required_out]) - max(
+                    [date_from, lunch_break_period])).total_seconds() / 3600.0
+            if lunch_break <= date_from <= date_to <= lunch_break_period:
+                leave_hours = 0
         else:
             worked_leave_hours = (min([required_out, date_out]) - max(
                 [required_in, date_in])).total_seconds() / 3600.0
@@ -2030,7 +2012,7 @@ class HRAttendance(models.Model):
                 'regular_holiday_hours': regular_holiday_hours > 0 and regular_holiday_hours or 0,
                 'regular_holiday_ot_hours': regular_holiday_ot_hours > 0 and regular_holiday_ot_hours or 0,
                 'special_holiday_hours': special_holiday_hours > 0 and special_holiday_hours or 0,
-                'special_holiday_ot_hours': special_holiday_ot_hours > 0 and special_holiday_ot_hours or 0}            
+                'special_holiday_ot_hours': special_holiday_ot_hours > 0 and special_holiday_ot_hours or 0}
 
     def calculate_overtime_fields_with_ob(self):
         actual_rest_day_overtime_rendered_hours = 0
@@ -2093,7 +2075,7 @@ class HRAttendance(models.Model):
     rest_day_hours = fields.Float('Rest Day Hours', compute="_worked_hours_computation", store=True)
     night_diff_ot_hours = fields.Float('Night Differential Overtime', compute='_compute_night_diff_overtime_hours',
                                        store=True)
-    rest_day_ot_hours = fields.Float('Rest Day Overtime')
+    rest_day_ot_hours = fields.Float('Rest Day Overtime', compute='_worked_hours_computation', store=True)
     reg_hday_ot_hours = fields.Float('Regular Holiday', compute='_worked_hours_computation', store=True)
     sp_hday_ot_hours = fields.Float('Special Holiday', compute='_worked_hours_computation', store=True)
 
@@ -2443,7 +2425,8 @@ class HRAttendanceHoliday(models.Model):
             holidays = self.env['hr.attendance.holidays'].search_count([
                 ('holiday_start', '=', rec.holiday_start),
                 ('holiday_end', '=', rec.holiday_end),
-                ('holiday_type', '=', rec.holiday_type)
+                ('holiday_type', '=', rec.holiday_type),
+                ('recurring_holiday', '=', rec.recurring_holiday)
             ])
             if holidays > 1:
                 raise ValidationError(_("Duplicate holidays not allowed!!"))
@@ -2451,17 +2434,24 @@ class HRAttendanceHoliday(models.Model):
     def cron_recurring_holidays(self):
         holiday_obj = self.env['hr.attendance.holidays']
         recurring_holidays = holiday_obj.search([('recurring_holiday', '=', True)])
+        current_year = datetime.today().year
+        # work_location_id = holiday.work_location_id.id if holiday.work_location_id else False
         for holiday in recurring_holidays:
             next_start_date = datetime.strptime(holiday.holiday_start, '%Y-%m-%d %H:%M:%S')
             next_end_date = datetime.strptime(holiday.holiday_end, '%Y-%m-%d %H:%M:%S')
-            holiday_obj.create({
-                'name': holiday.name,
-                'holiday_start': next_start_date.replace(year=datetime.today().year),
-                'holiday_end': next_end_date.replace(year=datetime.today().year),
-                'holiday_type': holiday.holiday_type,
-                'recurring_holiday': holiday.recurring_holiday,
-                'work_location_id': holiday.work_location_id or False,
-            })
+            next_start_year = next_start_date.year
+            next_end_year = next_end_date.year
+            if next_start_year != current_year and next_end_year != current_year:
+                next_start_date = next_start_date.replace(year=current_year)
+                next_end_date = next_end_date.replace(year=current_year)
+                holiday.write({
+                    'name': holiday.name,
+                    'holiday_start': next_start_date,
+                    'holiday_end': next_end_date,
+                    'holiday_type': holiday.holiday_type,
+                    'recurring_holiday': holiday.recurring_holiday,
+                    # 'work_location_id': holiday.work_location_id or False,
+                })
 
 
 class HRAttendanceOvertime(models.Model):
@@ -3444,17 +3434,17 @@ class HRPayrollAttendance(models.Model):
         }
 
         for record in worked_hours:
-            if record.late_hours > 0.000001:
-                late_hours_convert = record.late_hours*60
-                domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-                object = self.env['tardiness.table'].search(domain, limit=1)
-                equivalent_min = float(object.equivalent_min) / 60
+        #     if record.late_hours > 0.000001:
+        #         late_hours_convert = record.late_hours*60
+        #         domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+        #         object = self.env['tardiness.table'].search(domain, limit=1)
+        #         equivalent_min = float(object.equivalent_min) / 60
 
-                attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
-                attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
-            else:
-                attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
-                attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
+        #         attendances['number_of_days'] += float_round(1 - (equivalent_min/8), precision_digits=2) 
+        #         attendances['number_of_hours'] += float_round(8 - equivalent_min, precision_digits=2)
+        #     else:
+            attendances['number_of_days'] += float_round(record.worked_hours / 8.0, precision_digits=2)
+            attendances['number_of_hours'] += float_round(record.worked_hours, precision_digits=2)
 
         worked_hours_ids += worked_hours_ids.new(attendances)
         
@@ -3554,14 +3544,14 @@ class HRPayrollAttendance(models.Model):
             late['number_of_hours'] += float_round(record.late_hours, precision_digits=2)
 
         # New Logic for TD
-        #for record in worked_hours:
-        #    late_hours_convert = record.late_hours*60
-        #    domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
-        #    object = self.env['tardiness.table'].search(domain, limit=1)
-        #    equivalent_min = float(object.equivalent_min) / 60
+        # for record in worked_hours:
+        #     late_hours_convert = record.late_hours*60
+        #     domain = [('range1', '<=', late_hours_convert), ('range2', '>=', late_hours_convert)]
+        #     object = self.env['tardiness.table'].search(domain, limit=1)
+        #     equivalent_min = float(object.equivalent_min) / 60
 
-         #   late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
-          #  late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
+        #     late['number_of_days'] += float_round(equivalent_min / 8, precision_digits=2)
+        #     late['number_of_hours'] += float_round(equivalent_min, precision_digits=2)
         
         worked_hours_ids += worked_hours_ids.new(late)
 
@@ -4500,7 +4490,7 @@ class PayrollPeriodLine(models.Model):
                 if period.end_date < period.start_date:
                     raise ValidationError(_('"End date" time cannot be earlier than "Start date" date.'))
 
-    cut_off = fields.Selection([(1, 1), (2, 2),(3,3),(4,4)], string="Cut Off", required=True)
+    cut_off = fields.Selection([(1, 1), (2, 2), (3, 3), (4, 4)], string="Cut Off", required=True)
     start_date = fields.Date('Start Date', required=True)
     end_date = fields.Date('End Date', required=True)
     date_release = fields.Date('Release Date', required=True)
@@ -4511,49 +4501,6 @@ class HRYearToDate(models.Model):
     _name = 'hr.year_to_date'
     _description = 'Year to Date'
     _rec_name = 'employee_id'
-
-    @api.model
-    def create(self, vals):
-        create_employee = vals.get('employee_id')
-        create_ytd = vals.get('ytd_date')
-
-        if create_employee and create_ytd:
-            exist_record = self.search([
-                ('employee_id', '=', create_employee),
-                ('ytd_date', '=', create_ytd)
-            ], limit = 1)
-            if exist_record:
-                employee_name = self.env['hr.employee'].browse(create_employee).name
-                raise ValidationError(_("This employee '%s' record is already exist." %(employee_name)))
-            
-        return super(HRYearToDate, self).create(vals)
-
-    def write(self, vals):
-        res = super(HRYearToDate, self).write(vals)
-
-        # Check if 'old_ytd_amount' is in vals and if 'employee_id' is present in the current record
-        if 'old_ytd_amount' in vals and 'employee_id' in vals:
-            write_employee = vals['employee_id']
-            write_ytd = vals['ytd_date']
-
-            if 'employee_id' in vals and 'ytd_date' in vals:
-                exist_record = self.search([
-                    ('employee_id', '=', write_employee),
-                    ('ytd_date', '=', write_ytd),
-                    ('id', '!=', self.id)
-                ], limit=1)
-                if exist_record:
-                    employee_name = self.env['hr.employee'].browse(write_employee).name
-                    raise ValidationError(_("This employee '%s' record is already exist." %(employee_name)))
-                
-            employee_id = vals['employee_id']
-            old_ytd_amount = vals['old_ytd_amount']
-
-            # Update 'old_ytd_amount' for related hr.year_to_date records
-            ytd_records = self.env['hr.year_to_date.line'].search([('ytd_to_date_id.employee_id', '=', employee_id)], limit=1)
-            ytd_records.write({'old_ytd_amount': old_ytd_amount})
-
-        return res
 
     @api.model
     def default_get(self, fields_list):

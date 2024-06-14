@@ -78,15 +78,15 @@ class HREmployeeScheduleWorkTime(models.Model):
                 self.employee_num = False
                 self.department_id = False
 
-    @api.onchange('schedule_type')
-    def _onchange_schedule_type(self):
-        if self.schedule_type == 'flexible':
-            self.night_shift = False
+    # @api.onchange('schedule_type')
+    # def _onchange_schedule_type(self):
+    #     if self.schedule_type == 'flexible':
+    #         self.night_shift = False
     
-    @api.constrains('schedule_type','night_shift')
-    def _restrict_flexible(self):
-        if self.schedule_type == 'flexible' and self.night_shift:
-            raise ValidationError(_("You cannot set 'Graveyard Shift' if the schedule type is 'Flexible'"))
+    # @api.constrains('schedule_type','night_shift')
+    # def _restrict_flexible(self):
+    #     if self.schedule_type == 'flexible' and self.night_shift:
+    #         raise ValidationError(_("You cannot set 'Graveyard Shift' if the schedule type is 'Flexible'"))
         
     start_date = fields.Datetime('Start Date', required=True)
     end_date = fields.Datetime('End Date', required=True)
