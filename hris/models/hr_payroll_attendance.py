@@ -9,7 +9,8 @@ import time
 import math
 import pytz
 import babel
-
+import datetime
+import datetime as dt
 from lxml import etree
 from odoo.fields import Datetime
 from collections import OrderedDict
@@ -928,7 +929,7 @@ class HRAttendance(models.Model):
                                                seconds=0)
 
         NIGHT_DIFF_START = required_in
-        NIGHT_DIFF_END = required_in + timedelta(hours=7)
+        NIGHT_DIFF_END = required_in + timedelta(hours=8)
 
         # GET THE HOURS AND MINUTES FORMAT
         ndiff_start_time = NIGHT_DIFF_START.strftime('%H:%M')
@@ -954,6 +955,53 @@ class HRAttendance(models.Model):
 
             if date_in >= NIGHT_DIFF_END or date_out < NIGHT_DIFF_START:
                 rendered_hours = 0
+        
+        # If night shift and flexible condition
+        check_in_datetime_utc = context_timestamp(self, from_string(attendance.check_in))
+        check_out_datetime_utc = context_timestamp(self, from_string(attendance.check_out))
+        
+        check_in_datetime = check_in_datetime_utc.replace(tzinfo=None)
+        check_out_datetime = check_out_datetime_utc.replace(tzinfo=None)
+        if attendance.work_time_line_id.work_time_id.night_shift and attendance.work_time_line_id.work_time_id.schedule_type == 'flexible':
+            rendered_hours = 0
+            night_start = dt.datetime.strptime('22:00', '%H:%M').time()
+            night_end = dt.datetime.strptime('06:00', '%H:%M').time()
+
+            flexi_date_in = check_in_datetime.date()
+            flexi_date_out = check_out_datetime.date()
+
+            night_start_datetime = dt.datetime.combine(flexi_date_in, night_start)
+            night_end_datetime = dt.datetime.combine(flexi_date_out, night_end)
+
+            # night_start_datetime_in = datetime.datetime.combine(flexi_date_in, night_start)
+            # night_end_datetime_in = datetime.datetime.combine(flexi_date_in, night_end)
+            # night_start_datetime_out = datetime.datetime.combine(flexi_date_out, night_start)
+            # night_end_datetime_out = datetime.datetime.combine(flexi_date_out, night_end)
+            
+            # Check if check-in time falls within the night shift period
+            if check_in_datetime >= night_start_datetime and check_in_datetime <= night_end_datetime:
+                # Calculate the night shift duration
+                rendered_hours += (check_out_datetime - check_in_datetime).total_seconds() / 3600.0
+
+            # Check if check-out time falls within the night shift period
+            if check_out_datetime >= night_start_datetime and check_out_datetime <= night_end_datetime:
+                # Calculate the night shift duration
+                rendered_hours += (check_out_datetime - check_in_datetime).total_seconds() / 3600.0
+
+            # Subtract break period if applicable
+            if worktime_line.break_period > 0:
+                rendered_hours -= worktime_line.break_period
+
+            if check_in_datetime >= night_end_datetime and check_out_datetime < night_start_datetime:
+                rendered_hours = 0
+
+            # Ensure rendered_hours doesn't exceed 8 hours
+            if rendered_hours > 8.0:
+                rendered_hours = 8.0
+
+            # Ensure rendered_hours doesn't fall below 0
+            rendered_hours = max(rendered_hours, 0)
+
         if worktime_line and (attendance.reg_holiday_ids or attendance.spl_holiday_ids):
             holidays = attendance.reg_holiday_ids + attendance.spl_holiday_ids
             rendered_hours = 0
@@ -978,7 +1026,7 @@ class HRAttendance(models.Model):
                 rendered_hours = ((date_to - date_from).total_seconds()) / 3600.0
         if not worktime_line:
             rendered_hours = 0
-        if ((date_out - date_in).total_seconds() / 3600.0) < 0.25:
+        if rendered_hours < 0.25:
             rendered_hours = 0
         return rendered_hours
 
@@ -1000,7 +1048,12 @@ class HRAttendance(models.Model):
                 attendance.night_diff_hours = 0
             elif attendance.work_time_line_id and attendance.check_out and not (
                     attendance.is_absent or attendance.is_suspended or attendance.is_leave or attendance.is_holiday and attendance.work_time_line_id.work_time_id.night_shift):
-                attendance.night_diff_hours = self.night_difference(attendance)
+                # attendance.night_diff_hours = self.night_difference(attendance)
+                night_diff_hours = self.night_difference(attendance)
+                if night_diff_hours >= 8.0:
+                    attendance.night_diff_hours = 8.0
+                else:
+                    attendance.night_diff_hours = night_diff_hours                
             elif attendance.is_holiday:
                 attendance.night_diff_hours = self.night_difference(attendance)
             else:
