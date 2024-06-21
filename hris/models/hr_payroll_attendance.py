@@ -806,7 +806,18 @@ class HRAttendance(models.Model):
                                                                  seconds=0)
 
                 if schedule_type == 'flexible':
-                    attendance.undertime_hours = 0
+                    required_in = (context_timestamp(self, from_string(attendance.check_in))).replace(second=0)
+                    if attendance.check_out:
+                        check_out = context_timestamp(self, from_string(attendance.check_out)).replace(second=0)
+                        required_to_render = attendance.work_time_line_id.time_to_render
+                        worked_hours = (check_out - required_in).total_seconds() / 3600
+                        if worked_hours < required_to_render:
+                            if worked_hours == 0: # Absend whole day
+                                attendance.undertime_hours = 0.0
+                            else:
+                                attendance.undertime_hours = required_to_render - worked_hours
+                        else:
+                            attendance.undertime_hours = 0.0
 
                 if schedule_type in ('normal', 'coretime'):
                     if attendance.leave_ids:
@@ -1522,6 +1533,19 @@ class HRAttendance(models.Model):
             leave_wop_hours = 0
             ob_hours = 0
             schedule_type = attendance.work_time_line_id.work_time_id.schedule_type
+            if schedule_type == 'flexible':
+                required_in = (context_timestamp(self, from_string(attendance.check_in))).replace(second=0)
+                if attendance.check_out:
+                    check_out = context_timestamp(self, from_string(attendance.check_out)).replace(second=0)
+                    required_to_render = attendance.work_time_line_id.time_to_render
+                    worked_hours = (check_out - required_in).total_seconds() / 3600
+                    if worked_hours < required_to_render:
+                        if worked_hours == 0: # Absend whole day
+                            attendance.undertime_hours = 0.0
+                        else:
+                            attendance.undertime_hours = required_to_render - worked_hours
+                    else:
+                        attendance.undertime_hours = 0.0
             if schedule_type == 'coretime':
                 if ob_leaves:
                     ob_date_in = (context_timestamp(self, from_string(min(ob_leaves.mapped('date_from'))))).replace(second=0)
